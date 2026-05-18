@@ -8,8 +8,8 @@
 /* ---- CATÁLOGO DE PRODUTOS ---- */
 const products = [
     {
-        id: 1, name: "Ração Golden Adulto Cães 15kg", price: 189.90, category: "Ração",
-        rating: 4.9, reviews: 312, badge: "Mais Vendido",
+        id: 1, name: "Ração Golden Adulto Cães 15kg", price: 189.90, originalPrice: 229.90, category: "Ração",
+        rating: 4.9, reviews: 312, badge: "Oferta",
         img: "https://images.unsplash.com/photo-1589924691195-41432c84c161?auto=format&fit=crop&w=400&q=80",
         desc: "Ração completa para cães adultos de raças médias e grandes. Rica em proteínas e vitaminas essenciais para saúde e energia diária."
     },
@@ -26,8 +26,8 @@ const products = [
         desc: "Petisco saboroso e natural para cães. Ideal para recompensar no adestramento. Sem corantes artificiais."
     },
     {
-        id: 4, name: "Ração Filhotes Cães 10kg", price: 149.90, category: "Ração",
-        rating: 4.8, reviews: 203, badge: null,
+        id: 4, name: "Ração Filhotes Cães 10kg", price: 149.90, originalPrice: 179.90, category: "Ração",
+        rating: 4.8, reviews: 203, badge: "Promoção",
         img: "https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?auto=format&fit=crop&w=400&q=80",
         desc: "Nutrição balanceada para filhotes em fase de crescimento. Com DHA para desenvolvimento cerebral."
     },
@@ -38,8 +38,8 @@ const products = [
         desc: "Coleira resistente em nylon com fivela de metal. Disponível em vários tamanhos e cores."
     },
     {
-        id: 6, name: "Cama Pelúcia Antialérgica M", price: 129.90, category: "Acessórios",
-        rating: 4.8, reviews: 94, badge: null,
+        id: 6, name: "Cama Pelúcia Antialérgica M", price: 119.90, originalPrice: 159.90, category: "Acessórios",
+        rating: 4.8, reviews: 94, badge: "Promoção",
         img: "https://images.unsplash.com/photo-1591946614720-90a587da4a36?auto=format&fit=crop&w=400&q=80",
         desc: "Cama confortável com enchimento antialérgico. Lavável na máquina. Tamanho médio ideal para cães de até 12kg."
     },
@@ -56,8 +56,8 @@ const products = [
         desc: "Guia retátil com trava de segurança e cabo de nylon reforçado. Suporta até 25kg."
     },
     {
-        id: 9, name: "Shampoo Hipoalergênico 500ml", price: 38.90, category: "Higiene",
-        rating: 4.8, reviews: 267, badge: "Mais Vendido",
+        id: 9, name: "Shampoo Hipoalergênico 500ml", price: 34.90, originalPrice: 49.90, category: "Higiene",
+        rating: 4.8, reviews: 267, badge: "Oferta",
         img: "https://images.unsplash.com/photo-1631729372330-23405dd6263d?auto=format&fit=crop&w=400&q=80",
         desc: "Shampoo suave para cães e gatos com pele sensível. Sem parabenos, sulfatos ou corantes artificiais."
     },
@@ -74,8 +74,8 @@ const products = [
         desc: "Kit completo com escova e pasta dental pet. Sabor frango. Previne tártaro e mal hálito."
     },
     {
-        id: 12, name: "Antipulgas e Carrapatos — Coleira 8 meses", price: 89.90, category: "Medicamentos",
-        rating: 4.9, reviews: 445, badge: "Top",
+        id: 12, name: "Antipulgas e Carrapatos — Coleira 8 meses", price: 89.90, originalPrice: 119.90, category: "Medicamentos",
+        rating: 4.9, reviews: 445, badge: "Oferta",
         img: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=400&q=80",
         desc: "Coleira antiparasitária de longa duração. Protege contra pulgas e carrapatos por até 8 meses."
     },
@@ -292,16 +292,34 @@ function buildProductCard(p, idx) {
     idx = idx || 0;
     const inWL  = wishlist.some(w => w.id === p.id);
     const stars = buildStars(p.rating);
-    const badge = p.badge
-        ? '<div class="position-absolute top-0 start-0 p-2 z-2">' +
-          '<span class="badge bg-success text-white small px-2 py-1 rounded-pill">' + p.badge + '</span></div>'
-        : '';
     const delay = Math.min(idx * 60, 300);
+
+    // Badge: se tem desconto, mostra a % salva; senão usa o badge textual
+    let badgeHtml = '';
+    if (p.originalPrice) {
+        const pct = Math.round((1 - p.price / p.originalPrice) * 100);
+        badgeHtml = '<div class="position-absolute top-0 start-0 p-2 z-2">' +
+                    '<span class="badge badge-discount">−' + pct + '%</span></div>';
+    } else if (p.badge) {
+        const colors = { 'Oferta': 'bg-danger', 'Promoção': 'bg-danger', 'Top': 'bg-warning text-dark',
+                         'Novo': 'bg-primary', 'Destaque': 'bg-success', 'Mais Vendido': 'bg-success', 'Premium': 'bg-dark' };
+        const cls = colors[p.badge] || 'bg-success';
+        badgeHtml = '<div class="position-absolute top-0 start-0 p-2 z-2">' +
+                    '<span class="badge ' + cls + ' small px-2 py-1 rounded-pill">' + p.badge + '</span></div>';
+    }
+
+    // Bloco de preço: mostra "de X por Y" se tiver originalPrice
+    const priceHtml = p.originalPrice
+        ? '<div class="card-price-group">' +
+              '<span class="card-price-original" aria-label="Preço anterior">' + formatMoney(p.originalPrice) + '</span>' +
+              '<span class="card-price">' + formatMoney(p.price) + '</span>' +
+          '</div>'
+        : '<span class="card-price">' + formatMoney(p.price) + '</span>';
 
     return '<div class="col-6 col-md-4 col-lg-3" data-aos="fade-up" data-aos-delay="' + delay + '">' +
         '<div class="card-premium h-100">' +
             '<div class="img-wrapper">' +
-                badge +
+                badgeHtml +
                 '<img src="' + p.img + '" alt="' + escAttr(p.name) + '" loading="lazy"' +
                      ' onerror="this.src=\'https://placehold.co/300x220/e8f5ee/2d9e5f?text=Produto\'">' +
                 '<div class="card-actions" role="group" aria-label="Ações">' +
@@ -318,17 +336,23 @@ function buildProductCard(p, idx) {
             '<div class="card-body-inner">' +
                 '<div class="card-category-badge">' + p.category + '</div>' +
                 '<p class="card-product-name" title="' + escAttr(p.name) + '">' + p.name + '</p>' +
-                '<div class="d-flex align-items-center justify-content-between mb-2">' +
-                    '<span class="card-price">' + formatMoney(p.price) + '</span>' +
+                '<div class="d-flex align-items-center justify-content-between mb-3">' +
+                    priceHtml +
                     '<div class="card-rating" aria-label="Nota ' + p.rating + ' de 5">' +
                         '<span class="stars" aria-hidden="true">' + stars + '</span>' +
                         '<small class="ms-1">(' + p.reviews + ')</small>' +
                     '</div>' +
                 '</div>' +
-                '<button class="card-add-btn" onclick="addToCart(' + p.id + ')"' +
-                        ' aria-label="Adicionar ' + escAttr(p.name) + ' ao carrinho">' +
-                    '<i class="bi bi-bag-plus me-1" aria-hidden="true"></i>Adicionar' +
-                '</button>' +
+                '<div class="card-btn-group">' +
+                    '<button class="card-add-btn" onclick="addToCart(' + p.id + ')"' +
+                            ' aria-label="Adicionar ' + escAttr(p.name) + ' ao carrinho">' +
+                        '<i class="bi bi-bag-plus me-1" aria-hidden="true"></i>Adicionar' +
+                    '</button>' +
+                    '<button class="card-wa-btn" onclick="orderDirectWhatsApp(' + p.id + ')"' +
+                            ' aria-label="Pedir ' + escAttr(p.name) + ' pelo WhatsApp" title="Pedir pelo WhatsApp">' +
+                        '<i class="bi bi-whatsapp" aria-hidden="true"></i>' +
+                    '</button>' +
+                '</div>' +
             '</div>' +
         '</div></div>';
 }
@@ -703,8 +727,33 @@ function finalizeOrder() {
 
     window.open('https://wa.me/5511999999999?text=' + encodeURIComponent(msg), '_blank');
 
+    // Limpa o carrinho após pedido enviado ao WhatsApp
+    cart = [];
+    saveCart();
+    updateCartUI();
+
     const checkoutInst = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
     if (checkoutInst) checkoutInst.hide();
+
+    showToast('<i class="bi bi-check-circle-fill me-2"></i>Pedido enviado! Aguarde o contato da loja.');
+}
+
+/* ---- PEDIDO DIRETO PELO WHATSAPP (sem passar pelo carrinho) ---- */
+function orderDirectWhatsApp(id) {
+    const p = products.find(pr => pr.id === id);
+    if (!p) return;
+
+    const precoInfo = p.originalPrice
+        ? 'Por *' + formatMoney(p.price) + '* ~~' + formatMoney(p.originalPrice) + '~~'
+        : '*' + formatMoney(p.price) + '*';
+
+    const msg = '🐾 Olá, *Helvinho Rações*!\n\n' +
+                'Gostaria de pedir:\n' +
+                '▪ 1x ' + p.name + '\n' +
+                precoInfo + '\n\n' +
+                'Poderia confirmar disponibilidade e prazo de entrega? 😊';
+
+    window.open('https://wa.me/5511999999999?text=' + encodeURIComponent(msg), '_blank');
 }
 
 

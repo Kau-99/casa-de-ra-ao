@@ -1588,6 +1588,72 @@ select.form-input-premium { cursor: pointer; }
 }
 #liveToast .toast-body { padding: 14px 16px; font-size: 0.88rem; }
 
+/* ---- PREÇO DE / POR ---- */
+.card-price-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.card-price-original {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-decoration: line-through;
+    line-height: 1.2;
+}
+.badge-discount {
+    background: #e53e3e;
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+}
+
+/* ---- BOTÕES DO CARD (Adicionar + WhatsApp) ---- */
+.card-btn-group {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+.card-btn-group .card-add-btn {
+    flex: 1;
+    margin-top: 0; /* remove margin-top do botão sozinho */
+}
+.card-wa-btn {
+    flex-shrink: 0;
+    width: 42px;
+    background: linear-gradient(135deg, #25D366, #128C7E);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.card-wa-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(37,211,102,0.45);
+}
+
+/* ---- MAPA ---- */
+.map-section { margin-bottom: 40px; }
+.map-frame {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 1.5px solid var(--border);
+}
+.map-frame iframe {
+    width: 100%;
+    height: 420px;
+    border: none;
+    display: block;
+}
+
 /* ---- SCROLL BAR ---- */
 .custom-scrollbar::-webkit-scrollbar { width: 5px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
