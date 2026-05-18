@@ -3,113 +3,357 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helvinho | Nutrição e Bem-estar</title>
-    <meta name="description" content="EcoPet - Casa de ração e bem-estar para pets. Loja, spa e veterinária com foco em nutrição natural e produtos sustentáveis.">
-    
+    <title>Helvinho Rações | Rações, Acessórios e Medicamentos para Pets</title>
+    <meta name="description" content="Helvinho Rações — loja especializada em rações, acessórios, shampoos e medicamentos para animais. Qualidade e variedade para o seu pet.">
+    <meta name="keywords" content="ração para cachorro, ração para gato, petshop, acessórios pet, medicamentos veterinários, shampoo pet, antipulgas, vermífugo">
+    <meta property="og:title" content="Helvinho Rações | Loja de Produtos para Pets">
+    <meta property="og:description" content="Rações, acessórios, higiene e medicamentos — tudo para o seu animal de estimação.">
+    <meta property="og:type" content="website">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="loader" class="loader-container">
-        <div class="d-flex flex-column align-items-center">
-            <div class="spinner-border text-success mb-3" role="status"></div>
-            <span class="text-muted small tracking-wide">CARREGANDO...</span>
+    <!-- Cursor Customizado -->
+    <div id="custom-cursor"></div>
+    <div id="custom-cursor-follower"></div>
+
+    <!-- Loader Skeleton -->
+    <div id="loader" class="loader-container" aria-hidden="true">
+        <div class="loader-inner">
+            <div class="loader-logo">
+                <div class="loader-paw">
+                    <i class="bi bi-emoji-smile-fill"></i>
+                </div>
+            </div>
+            <div class="loader-bar-track"><div class="loader-bar-fill"></div></div>
+            <span class="loader-text">CARREGANDO...</span>
         </div>
     </div>
 
-    <div class="toast-container position-fixed bottom-0 end-0 p-3 z-3">
-        <div id="liveToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <!-- Toast -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9990;">
+        <div id="liveToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
-                <div class="toast-body fs-6"></div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                <div class="toast-body fs-6 fw-semibold"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
             </div>
         </div>
     </div>
 
-    <nav class="navbar navbar-expand-lg fixed-top glass-nav">
+    <!-- WhatsApp Flutuante -->
+    <a href="https://wa.me/5511999999999" target="_blank" class="whatsapp-float" aria-label="Falar no WhatsApp" title="Fale conosco no WhatsApp">
+        <i class="bi bi-whatsapp"></i>
+        <span class="whatsapp-tooltip">Fale conosco!</span>
+    </a>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg fixed-top glass-nav" role="navigation" aria-label="Navegação principal">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center gap-2 cursor-pointer" onclick="router('home')">
+            <a class="navbar-brand d-flex align-items-center gap-2 cursor-pointer" onclick="router('home')" aria-label="Helvinho Rações - Página Inicial">
                 <div class="brand-mark">
-                    <img src="assets/dog.png" alt="EcoPet - logo cachorro" class="brand-logo">
+                    <img src="assets/dog.png" alt="Logo Helvinho Rações" class="brand-logo" loading="eager"
+                         onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'bi bi-emoji-smile-fill text-success fs-5\'></i>';">
                 </div>
-                <span class="fw-bold tracking-wide text-dark">
+                <span class="brand-name fw-bold">
                     Helvinho<span class="text-success">Rações</span>
                 </span>
             </a>
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="Menu">
-                <i class="bi bi-list fs-2 text-dark"></i>
+
+            <!-- Hamburger animado -->
+            <button class="navbar-toggler border-0 hamburger-btn" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Abrir menu">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
             </button>
+
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
-                    <li class="nav-item"><a class="nav-link active" onclick="router('home')" data-target="home">Início</a></li>
-                    <li class="nav-item"><a class="nav-link" onclick="router('shop')" data-target="shop">Loja</a></li>
-                    <li class="nav-item"><a class="nav-link" onclick="router('services')" data-target="services">Spa & Vet</a></li>
-                    <li class="nav-item"><a class="nav-link" onclick="router('about')" data-target="about">Quem Somos</a></li>
-                    <li class="nav-item"><a class="nav-link" onclick="router('contact')" data-target="contact">Contato</a></li>
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-1" role="menubar">
+                    <li class="nav-item" role="none"><a class="nav-link active" onclick="router('home')" data-target="home" role="menuitem" tabindex="0">Início</a></li>
+                    <li class="nav-item" role="none"><a class="nav-link" onclick="router('shop')" data-target="shop" role="menuitem" tabindex="0">Loja</a></li>
+                    <li class="nav-item" role="none"><a class="nav-link" onclick="router('about')" data-target="about" role="menuitem" tabindex="0">Quem Somos</a></li>
+                    <li class="nav-item" role="none"><a class="nav-link" onclick="router('contact')" data-target="contact" role="menuitem" tabindex="0">Contato</a></li>
                 </ul>
-                <div class="d-flex align-items-center gap-3">
-                    <button class="btn btn-light position-relative border-0 shadow-sm rounded-circle p-2 icon-hover" type="button" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas" aria-label="Abrir sacola">
-                        <i class="bi bi-handbag text-dark fs-5"></i>
-                        <span id="cart-badge" class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-light rounded-circle d-none"></span>
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Wishlist -->
+                    <button class="nav-icon-btn position-relative" onclick="router('wishlist')" aria-label="Lista de desejos" title="Favoritos">
+                        <i class="bi bi-heart fs-5"></i>
+                        <span id="wishlist-badge" class="nav-badge d-none"></span>
+                    </button>
+                    <!-- Carrinho -->
+                    <button class="nav-icon-btn position-relative" type="button" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas" aria-label="Abrir sacola de compras">
+                        <i class="bi bi-handbag fs-5"></i>
+                        <span id="cart-badge" class="nav-badge d-none"></span>
                     </button>
                 </div>
             </div>
         </div>
     </nav>
 
+    <!-- App Content -->
     <main id="app-content">
 
-        <section id="view-home" class="view-section active">
-            <header class="hero-wrapper position-relative overflow-hidden">
-                <div class="container h-100">
-                    <div class="row h-100 align-items-center">
-                        <div class="col-lg-6 z-2" data-aos="fade-right">
-                            <div class="d-inline-block px-3 py-1 mb-3 rounded-pill bg-light border border-success-subtle text-success fw-semibold small">
-                                <i class="bi bi-award-fill me-1"></i> Eleito o Melhor Petshop 2024
+        <!-- ===================== HOME ===================== -->
+        <section id="view-home" class="view-section active" aria-label="Página inicial">
+
+            <!-- Hero -->
+            <header class="hero-wrapper" role="banner">
+                <!-- Partículas de fundo -->
+                <div class="hero-particles" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="hero-bg-gradient" aria-hidden="true"></div>
+                <div class="container position-relative z-2">
+                    <div class="row align-items-center min-vh-hero">
+                        <div class="col-lg-6 hero-text-col" data-aos="fade-right" data-aos-duration="900">
+                            <div class="hero-badge d-inline-flex align-items-center gap-2 mb-4">
+                                <i class="bi bi-award-fill text-warning"></i>
+                                <span>Referência em produtos pet na região</span>
                             </div>
-                            <h1 class="display-3 fw-bold mb-4 text-dark">Bem-estar Natural <br>para quem você ama.</h1>
-                            <p class="lead text-muted mb-5 w-75">Nutrição holística, spa terapêutico e acessórios sustentáveis.</p>
-                            <div class="d-flex gap-3">
-                                <button onclick="router('shop')" class="btn btn-primary btn-lg rounded-pill px-5 shadow-lg">Ir para Loja</button>
-                                <button onclick="router('services')" class="btn btn-outline-dark btn-lg rounded-pill px-4">Agendar Spa</button>
+                            <h1 class="hero-title">
+                                Tudo para o<br>
+                                <span class="hero-title-accent">seu animal de estimação.</span>
+                            </h1>
+                            <p class="hero-subtitle">Rações, acessórios, shampoos e medicamentos — encontre tudo o que o seu pet precisa com preço justo e qualidade garantida.</p>
+                            <div class="hero-actions d-flex gap-3 flex-wrap">
+                                <button onclick="router('shop')" class="btn-hero-primary">
+                                    <span>Ver Produtos</span>
+                                    <i class="bi bi-arrow-right ms-2"></i>
+                                </button>
+                                <button onclick="router('contact')" class="btn-hero-secondary">
+                                    <i class="bi bi-whatsapp me-2"></i>Falar Conosco
+                                </button>
+                            </div>
+                            <div class="hero-stats d-flex gap-4 mt-5">
+                                <div class="hero-stat">
+                                    <strong>+200</strong>
+                                    <span>Produtos</span>
+                                </div>
+                                <div class="hero-stat-divider" aria-hidden="true"></div>
+                                <div class="hero-stat">
+                                    <strong>98%</strong>
+                                    <span>Satisfação</span>
+                                </div>
+                                <div class="hero-stat-divider" aria-hidden="true"></div>
+                                <div class="hero-stat">
+                                    <strong>6 anos</strong>
+                                    <span>de Mercado</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-lg-6 position-relative z-1 h-100 d-flex align-items-center justify-content-center" data-aos="zoom-in-up">
-                            <div class="hero-blob"></div>
-                            <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&auto=format&fit=crop&w=650&q=80" class="img-fluid mask-image" alt="Cachorro feliz em ambiente natural">
+                        <div class="col-lg-6 hero-img-col d-flex align-items-center justify-content-center" data-aos="zoom-in" data-aos-duration="1000" data-aos-delay="200">
+                            <div class="hero-img-wrapper">
+                                <div class="hero-blob" aria-hidden="true"></div>
+                                <div class="hero-blob hero-blob-2" aria-hidden="true"></div>
+                                <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&auto=format&fit=crop&w=700&q=85" class="hero-img" alt="Cachorro feliz e saudável em ambiente natural" loading="eager">
+                                <!-- Floating cards -->
+                                <div class="hero-float-card hero-float-1" data-aos="fade-left" data-aos-delay="600">
+                                    <i class="bi bi-shield-check text-success"></i>
+                                    <div><strong>100% Natural</strong><small>Certificado</small></div>
+                                </div>
+                                <div class="hero-float-card hero-float-2" data-aos="fade-right" data-aos-delay="800">
+                                    <i class="bi bi-truck text-primary"></i>
+                                    <div><strong>Frete Grátis</strong><small>acima de R$199</small></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <!-- Wave SVG bottom -->
+                <div class="hero-wave" aria-hidden="true">
+                    <svg viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="M0,40 C360,80 1080,0 1440,40 L1440,80 L0,80 Z" fill="#fafbfc"/></svg>
+                </div>
             </header>
-            <section class="py-5">
+
+            <!-- Categorias -->
+            <section class="categories-section py-5" aria-labelledby="categories-heading">
                 <div class="container">
+                    <div class="section-header text-center mb-5" data-aos="fade-up">
+                        <span class="section-badge">Nossas Categorias</span>
+                        <h2 id="categories-heading" class="section-title">O que você está procurando?</h2>
+                    </div>
                     <div class="row g-4">
-                        <div class="col-md-4" data-aos="fade-up">
-                            <div class="category-card p-4 rounded-4 bg-soft-green h-100 text-center cursor-pointer" onclick="filterAndGo('Ração')">
-                                <img src="https://cdn-icons-png.flaticon.com/512/3043/3043888.png" width="80" class="mb-3" alt="Ícone de ração para pets">
-                                <h4 class="fw-bold">Nutrição</h4>
-                                <p class="text-muted small">Rações premium e petiscos.</p>
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="0">
+                            <button class="category-card-premium w-100 text-start" onclick="filterAndGo('Ração')" aria-label="Ver rações e petiscos">
+                                <div class="category-card-bg" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);" aria-hidden="true"></div>
+                                <div class="category-card-icon" style="background: #2d9e5f;">
+                                    <i class="bi bi-basket-fill text-white" aria-hidden="true"></i>
+                                </div>
+                                <div class="category-card-content">
+                                    <h4 class="fw-bold mb-1">Rações</h4>
+                                    <p class="text-muted small mb-0">Cães, gatos e outros</p>
+                                    <span class="category-card-arrow"><i class="bi bi-arrow-right"></i></span>
+                                </div>
+                                <img src="https://cdn-icons-png.flaticon.com/512/3043/3043888.png" class="category-card-img" alt="" aria-hidden="true" loading="lazy">
+                            </button>
+                        </div>
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="80">
+                            <button class="category-card-premium w-100 text-start" onclick="filterAndGo('Acessórios')" aria-label="Ver acessórios para pets">
+                                <div class="category-card-bg" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);" aria-hidden="true"></div>
+                                <div class="category-card-icon" style="background: #1976d2;">
+                                    <i class="bi bi-tag-fill text-white" aria-hidden="true"></i>
+                                </div>
+                                <div class="category-card-content">
+                                    <h4 class="fw-bold mb-1">Acessórios</h4>
+                                    <p class="text-muted small mb-0">Coleiras, camas e mais</p>
+                                    <span class="category-card-arrow"><i class="bi bi-arrow-right"></i></span>
+                                </div>
+                                <img src="https://cdn-icons-png.flaticon.com/512/3043/3043646.png" class="category-card-img" alt="" aria-hidden="true" loading="lazy">
+                            </button>
+                        </div>
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="160">
+                            <button class="category-card-premium w-100 text-start" onclick="filterAndGo('Higiene')" aria-label="Ver produtos de higiene">
+                                <div class="category-card-bg" style="background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);" aria-hidden="true"></div>
+                                <div class="category-card-icon" style="background: #0097a7;">
+                                    <i class="bi bi-droplet-fill text-white" aria-hidden="true"></i>
+                                </div>
+                                <div class="category-card-content">
+                                    <h4 class="fw-bold mb-1">Higiene</h4>
+                                    <p class="text-muted small mb-0">Shampoos e condicionadores</p>
+                                    <span class="category-card-arrow"><i class="bi bi-arrow-right"></i></span>
+                                </div>
+                                <img src="https://cdn-icons-png.flaticon.com/512/3043/3043232.png" class="category-card-img" alt="" aria-hidden="true" loading="lazy">
+                            </button>
+                        </div>
+                        <div class="col-6 col-md-3" data-aos="fade-up" data-aos-delay="240">
+                            <button class="category-card-premium w-100 text-start" onclick="filterAndGo('Medicamentos')" aria-label="Ver medicamentos para pets">
+                                <div class="category-card-bg" style="background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);" aria-hidden="true"></div>
+                                <div class="category-card-icon" style="background: #e91e63;">
+                                    <i class="bi bi-capsule-pill text-white" aria-hidden="true"></i>
+                                </div>
+                                <div class="category-card-content">
+                                    <h4 class="fw-bold mb-1">Medicamentos</h4>
+                                    <p class="text-muted small mb-0">Antipulgas, vermífugos</p>
+                                    <span class="category-card-arrow"><i class="bi bi-arrow-right"></i></span>
+                                </div>
+                                <img src="https://cdn-icons-png.flaticon.com/512/3043/3043888.png" class="category-card-img" alt="" aria-hidden="true" loading="lazy">
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Produtos em Destaque (Home) -->
+            <section class="featured-section py-5" aria-labelledby="featured-heading">
+                <div class="container">
+                    <div class="section-header d-flex align-items-center justify-content-between mb-5 flex-wrap gap-3" data-aos="fade-up">
+                        <div>
+                            <span class="section-badge">Destaques</span>
+                            <h2 id="featured-heading" class="section-title mb-0">Mais Vendidos</h2>
+                        </div>
+                        <button onclick="router('shop')" class="btn-outline-brand">Ver Todos <i class="bi bi-arrow-right ms-1"></i></button>
+                    </div>
+                    <div id="featured-grid" class="row g-4" aria-label="Produtos em destaque"></div>
+                </div>
+            </section>
+
+            <!-- Testimonials -->
+            <section class="testimonials-section py-5 my-3" aria-labelledby="testimonials-heading">
+                <div class="container">
+                    <div class="section-header text-center mb-5" data-aos="fade-up">
+                        <span class="section-badge">Depoimentos</span>
+                        <h2 id="testimonials-heading" class="section-title">O que nossos clientes dizem</h2>
+                    </div>
+                    <div class="swiper testimonials-swiper" data-aos="fade-up" data-aos-delay="100">
+                        <div class="swiper-wrapper">
+                            <div class="swiper-slide">
+                                <div class="testimonial-card">
+                                    <div class="testimonial-stars" aria-label="5 de 5 estrelas">
+                                        <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                                    </div>
+                                    <p class="testimonial-text">"Minha Golden Retriever está muito mais disposta depois que trocamos a ração. Os preços aqui são imbatíveis e o atendimento é excelente!"</p>
+                                    <div class="testimonial-author">
+                                        <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=80&q=80" alt="Foto de Maria Clara">
+                                        <div>
+                                            <strong>Maria Clara</strong>
+                                            <small>Tutora da Luna 🐾</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="swiper-slide">
+                                <div class="testimonial-card">
+                                    <div class="testimonial-stars" aria-label="5 de 5 estrelas">
+                                        <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                                    </div>
+                                    <p class="testimonial-text">"Comprei o antipulgas e o vermífugo aqui, funcionou perfeitamente. Loja bem sortida, sempre encontro o que preciso para o meu cachorro."</p>
+                                    <div class="testimonial-author">
+                                        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80" alt="Foto de Roberto Alves">
+                                        <div>
+                                            <strong>Roberto Alves</strong>
+                                            <small>Tutor do Bolinha 🐩</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="swiper-slide">
+                                <div class="testimonial-card">
+                                    <div class="testimonial-stars" aria-label="5 de 5 estrelas">
+                                        <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                                    </div>
+                                    <p class="testimonial-text">"Shampoo hipoalergênico que comprei aqui resolveu o problema de pele da minha gata. Ótima variedade de produtos e preço honesto!"</p>
+                                    <div class="testimonial-author">
+                                        <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=80&q=80" alt="Foto de Fernanda Lima">
+                                        <div>
+                                            <strong>Fernanda Lima</strong>
+                                            <small>Tutora da Mia 🐱</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="swiper-slide">
+                                <div class="testimonial-card">
+                                    <div class="testimonial-stars" aria-label="5 de 5 estrelas">
+                                        <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                                    </div>
+                                    <p class="testimonial-text">"Peço pelo WhatsApp e entregam em casa. A cama que comprei para o Thor chegou rapidinho e ele adorou. Super recomendo!"</p>
+                                    <div class="testimonial-author">
+                                        <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=80&q=80" alt="Foto de Camila Santos">
+                                        <div>
+                                            <strong>Camila Santos</strong>
+                                            <small>Tutora do Thor 🐕</small>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                            <div class="category-card p-4 rounded-4 bg-soft-orange h-100 text-center cursor-pointer" onclick="filterAndGo('Brinquedos')">
-                                <img src="https://cdn-icons-png.flaticon.com/512/3043/3043232.png" width="80" class="mb-3" alt="Ícone de brinquedo para pets">
-                                <h4 class="fw-bold">Diversão</h4>
-                                <p class="text-muted small">Brinquedos ecológicos.</p>
+                        <div class="swiper-pagination testimonials-pagination"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Newsletter -->
+            <section class="newsletter-section py-5" aria-labelledby="newsletter-heading">
+                <div class="container">
+                    <div class="newsletter-card" data-aos="zoom-in">
+                        <div class="newsletter-bg-pattern" aria-hidden="true"></div>
+                        <div class="row align-items-center g-4 position-relative z-1">
+                            <div class="col-lg-6">
+                                <span class="section-badge section-badge-white">Newsletter</span>
+                                <h2 id="newsletter-heading" class="newsletter-title">Receba ofertas exclusivas!</h2>
+                                <p class="newsletter-subtitle">Cadastre-se e ganhe <strong>10% OFF</strong> na primeira compra + dicas de saúde para o seu pet.</p>
                             </div>
-                        </div>
-                        <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                            <div class="category-card p-4 rounded-4 bg-soft-blue h-100 text-center cursor-pointer" onclick="filterAndGo('Acessórios')">
-                                <img src="https://cdn-icons-png.flaticon.com/512/3043/3043646.png" width="80" class="mb-3" alt="Ícone de acessórios para pets">
-                                <h4 class="fw-bold">Conforto</h4>
-                                <p class="text-muted small">Camas e acessórios.</p>
+                            <div class="col-lg-6">
+                                <form class="newsletter-form" onsubmit="handleNewsletter(event)" novalidate>
+                                    <div class="newsletter-input-group">
+                                        <label for="newsletter-email" class="visually-hidden">Seu melhor e-mail</label>
+                                        <input type="email" id="newsletter-email" class="newsletter-input" placeholder="Seu melhor e-mail..." required aria-required="true">
+                                        <button type="submit" class="newsletter-btn">
+                                            <span>Quero Desconto</span>
+                                            <i class="bi bi-send-fill ms-2"></i>
+                                        </button>
+                                    </div>
+                                    <p class="newsletter-privacy"><i class="bi bi-lock-fill me-1"></i> Sem spam, prometemos!</p>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -117,285 +361,626 @@
             </section>
         </section>
 
-        <section id="view-shop" class="view-section d-none">
-            <div class="bg-light-gray py-5">
-                <div class="container pt-5">
-                    <div class="row mb-4 align-items-center">
-                        <div class="col-md-6">
-                            <h2 class="fw-bold display-6">Loja Completa</h2>
+        <!-- ===================== LOJA ===================== -->
+        <section id="view-shop" class="view-section d-none" aria-label="Loja">
+            <div class="shop-hero py-4 pt-5 mt-4">
+                <div class="container pt-3">
+                    <!-- Breadcrumb -->
+                    <nav aria-label="Navegação estrutural" class="mb-3">
+                        <ol class="breadcrumb-premium">
+                            <li><a onclick="router('home')"><i class="bi bi-house-fill me-1"></i>Início</a></li>
+                            <li aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+                            <li aria-current="page">Loja</li>
+                        </ol>
+                    </nav>
+                    <div class="row align-items-center g-3 mb-4">
+                        <div class="col-md-5">
+                            <h1 class="shop-title fw-bold mb-0">Loja Completa</h1>
+                            <p class="text-muted small mb-0" id="products-count">Todos os produtos</p>
                         </div>
-                        <div class="col-md-6">
-                            <div class="input-group shadow-sm rounded-pill overflow-hidden bg-white">
-                                <span class="input-group-text bg-white border-0 ps-3"><i class="bi bi-search text-muted"></i></span>
-                                <input type="text" id="search-input" class="form-control border-0" placeholder="Buscar..." onkeyup="searchProducts()">
+                        <div class="col-md-7">
+                            <!-- Search com autocomplete -->
+                            <div class="search-wrapper position-relative">
+                                <label for="search-input" class="visually-hidden">Buscar produtos</label>
+                                <i class="bi bi-search search-icon" aria-hidden="true"></i>
+                                <input type="search" id="search-input" class="search-input-premium" placeholder="Buscar produtos..." onkeyup="searchProducts()" autocomplete="off" aria-autocomplete="list" aria-controls="search-suggestions">
+                                <div id="search-suggestions" class="search-suggestions" role="listbox" aria-label="Sugestões de busca"></div>
                             </div>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 mb-4 overflow-auto pb-2">
-                        <button class="btn btn-filter active" onclick="filterProducts('all')">Todos</button>
-                        <button class="btn btn-filter" onclick="filterProducts('Ração')">Ração</button>
-                        <button class="btn btn-filter" onclick="filterProducts('Brinquedos')">Brinquedos</button>
-                        <button class="btn btn-filter" onclick="filterProducts('Acessórios')">Acessórios</button>
+
+                    <!-- Filtros -->
+                    <div class="filters-row d-flex gap-2 mb-4 overflow-auto pb-2" role="group" aria-label="Filtrar por categoria">
+                        <button class="btn-filter active" data-filter="all" onclick="filterProducts('all')" aria-pressed="true">
+                            <i class="bi bi-grid-fill me-1" aria-hidden="true"></i>Todos
+                        </button>
+                        <button class="btn-filter" data-filter="Ração" onclick="filterProducts('Ração')" aria-pressed="false">
+                            <i class="bi bi-basket me-1" aria-hidden="true"></i>Ração
+                        </button>
+                        <button class="btn-filter" data-filter="Acessórios" onclick="filterProducts('Acessórios')" aria-pressed="false">
+                            <i class="bi bi-tag me-1" aria-hidden="true"></i>Acessórios
+                        </button>
+                        <button class="btn-filter" data-filter="Higiene" onclick="filterProducts('Higiene')" aria-pressed="false">
+                            <i class="bi bi-droplet me-1" aria-hidden="true"></i>Higiene
+                        </button>
+                        <button class="btn-filter" data-filter="Medicamentos" onclick="filterProducts('Medicamentos')" aria-pressed="false">
+                            <i class="bi bi-capsule-pill me-1" aria-hidden="true"></i>Medicamentos
+                        </button>
                     </div>
-                    <div id="products-grid" class="row g-4"></div>
+
+                    <div id="products-grid" class="row g-4" aria-label="Grade de produtos" aria-live="polite"></div>
                 </div>
             </div>
         </section>
 
-        <section id="view-services" class="view-section d-none">
-            <div class="py-5 mt-5">
-                <div class="container text-center mb-5">
-                    <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill mb-3">Spa & Veterinária</span>
-                    <h2 class="display-5 fw-bold text-dark">Puro Relaxamento</h2>
-                </div>
-                <div class="container">
-                    <div class="row g-4">
-                        <div class="col-lg-4" data-aos="fade-up">
-                            <div class="service-card h-100 rounded-4 overflow-hidden shadow-sm bg-white border">
-                                <img src="https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=600&q=80" class="w-100" style="height: 250px; object-fit: cover;" alt="Cachorro tomando banho relaxante">
-                                <div class="p-4">
-                                    <h4 class="fw-bold mb-3">Banho Relaxante</h4>
-                                    <ul class="list-unstyled text-muted small mb-4">
-                                        <li><i class="bi bi-check2 text-success me-2"></i>Shampoo hipoalergênico</li>
-                                        <li><i class="bi bi-check2 text-success me-2"></i>Massagem relaxante</li>
-                                    </ul>
-                                    <button class="btn btn-outline-dark w-100 rounded-pill" onclick="bookService('Banho Relaxante')">Agendar</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="100">
-                            <div class="service-card h-100 rounded-4 overflow-hidden shadow-lg border-0 transform-hover">
-                                <img src="https://images.unsplash.com/photo-1623902334808-15822e1b402c?auto=format&fit=crop&w=600&q=80" class="w-100" style="height: 250px; object-fit: cover;" alt="Cachorro sendo tosado em petshop">
-                                <div class="p-4 bg-primary text-white">
-                                    <h4 class="fw-bold mb-3">Tosa Completa</h4>
-                                    <ul class="list-unstyled small mb-4 opacity-75">
-                                        <li><i class="bi bi-check2 me-2"></i>Tosa na tesoura</li>
-                                        <li><i class="bi bi-check2 me-2"></i>Limpeza de ouvidos</li>
-                                    </ul>
-                                    <button class="btn btn-light text-primary w-100 rounded-pill fw-bold" onclick="bookService('Tosa Completa')">Agendar</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4" data-aos="fade-up" data-aos-delay="200">
-                            <div class="service-card h-100 rounded-4 overflow-hidden shadow-sm bg-white border">
-                                <img src="https://images.unsplash.com/photo-1628009368231-76033527212e?auto=format&fit=crop&w=600&q=80" class="w-100" style="height: 250px; object-fit: cover;" alt="Veterinária examinando cachorro">
-                                <div class="p-4">
-                                    <h4 class="fw-bold mb-3">Consulta Vet</h4>
-                                    <ul class="list-unstyled text-muted small mb-4">
-                                        <li><i class="bi bi-check2 text-success me-2"></i>Check-up geral</li>
-                                        <li><i class="bi bi-check2 text-success me-2"></i>Nutricionista</li>
-                                    </ul>
-                                    <button class="btn btn-outline-dark w-100 rounded-pill" onclick="bookService('Consulta Veterinária')">Agendar</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="view-about" class="view-section d-none">
-            <div class="py-5 mt-5">
-                <div class="container mb-5">
-                    <div class="row align-items-center">
-                        <div class="col-lg-6 order-2 order-lg-1" data-aos="fade-right">
-                            <div class="d-inline-block px-3 py-1 mb-3 rounded-pill bg-light border border-success-subtle text-success fw-semibold small">
-                                <i class="bi bi-heart-fill me-1"></i> Desde 2018
-                            </div>
-                            <h2 class="display-4 fw-bold mb-4">Amor por Pets,<br>Respeito pela Natureza.</h2>
-                            <p class="lead text-muted mb-4">A EcoPet não é apenas uma loja. Somos um movimento que acredita que o cuidado animal e a sustentabilidade caminham juntos.</p>
-                            
-                            <div class="mt-5 border-start border-2 ps-4">
-                                <div class="timeline-step mb-4">
-                                    <h6 class="fw-bold text-primary">2018 - O Início</h6>
-                                    <p class="text-muted small m-0">Fundada em uma pequena garagem com o sonho de vender apenas produtos 100% naturais.</p>
-                                </div>
-                                <div class="timeline-step mb-4">
-                                    <h6 class="fw-bold text-primary">2020 - Expansão Digital</h6>
-                                    <p class="text-muted small m-0">Lançamento do nosso e-commerce para atender todo o Brasil durante a pandemia.</p>
-                                </div>
-                                <div class="timeline-step">
-                                    <h6 class="fw-bold text-primary">2024 - O Novo EcoSpa</h6>
-                                    <p class="text-muted small m-0">Inauguração do nosso centro de estética e veterinária com foco em medicina integrativa.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-6 order-1 order-lg-2 text-center mb-4 mb-lg-0" data-aos="zoom-in">
-                            <img src="https://cdn-icons-png.flaticon.com/512/7440/7440891.png" alt="Ilustração EcoPet" class="img-fluid about-illustration">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-soft-green py-5 mb-5">
-                    <div class="container">
-                        <div class="row text-center g-4">
-                            <div class="col-md-4" data-aos="fade-up">
-                                <div class="stat-card h-100">
-                                    <h2 class="display-4 fw-800 text-primary mb-0">+5.000</h2>
-                                    <p class="text-muted fw-bold">Pets Atendidos</p>
-                                </div>
-                            </div>
-                            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                                <div class="stat-card h-100">
-                                    <h2 class="display-4 fw-800 text-primary mb-0">98%</h2>
-                                    <p class="text-muted fw-bold">Clientes Satisfeitos</p>
-                                </div>
-                            </div>
-                            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                                <div class="stat-card h-100">
-                                    <h2 class="display-4 fw-800 text-primary mb-0">1 Ton</h2>
-                                    <p class="text-muted fw-bold">De Ração Doadas</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="container pb-5">
-                    <div class="text-center mb-5" data-aos="fade-up">
-                        <h2 class="fw-bold">Quem Cuida do Seu Melhor Amigo</h2>
-                        <p class="text-muted">Conheça os especialistas por trás da EcoPet</p>
-                    </div>
-                    <div class="row g-4">
-                        <div class="col-md-4" data-aos="fade-up">
-                            <div class="card border-0 shadow-sm text-center p-4 h-100">
-                                <div class="team-img-wrapper">
-                                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80" alt="Foto da Dra. Ana Silva, veterinária chefe">
-                                </div>
-                                <h5 class="fw-bold mb-1">Dra. Ana Silva</h5>
-                                <p class="text-primary small fw-bold mb-3">Veterinária Chefe</p>
-                                <p class="text-muted small">Especialista em nutrição animal e medicina preventiva.</p>
-                            </div>
-                        </div>
-                        <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
-                            <div class="card border-0 shadow-sm text-center p-4 h-100">
-                                <div class="team-img-wrapper">
-                                    <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80" alt="Foto de Carlos Mendes, groomer sênior">
-                                </div>
-                                <h5 class="fw-bold mb-1">Carlos Mendes</h5>
-                                <p class="text-primary small fw-bold mb-3">Groomer Sênior</p>
-                                <p class="text-muted small">Premiado em concursos de tosa, ama transformar visuais.</p>
-                            </div>
-                        </div>
-                        <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
-                            <div class="card border-0 shadow-sm text-center p-4 h-100">
-                                <div class="team-img-wrapper">
-                                    <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80" alt="Foto de Júlia Costa, atendimento">
-                                </div>
-                                <h5 class="fw-bold mb-1">Júlia Costa</h5>
-                                <p class="text-primary small fw-bold mb-3">Atendimento</p>
-                                <p class="text-muted small">A voz simpática que resolve tudo e mima todos os pets na loja.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="view-contact" class="view-section d-none">
+        <!-- ===================== WISHLIST ===================== -->
+        <section id="view-wishlist" class="view-section d-none" aria-label="Lista de desejos">
             <div class="container pt-5 mt-5">
-                <div class="row g-5">
-                    <div class="col-lg-6">
-                        <h2 class="display-6 fw-bold mb-4">Fale Conosco</h2>
-                        <p class="text-muted mb-5">Venha nos visitar ou mande uma mensagem.</p>
-                        <div class="d-flex gap-3 mb-4">
-                            <div class="bg-soft-green p-3 rounded-circle text-primary"><i class="bi bi-geo-alt fs-4"></i></div>
-                            <div>
-                                <h5 class="fw-bold mb-1">Localização</h5>
-                                <p class="text-muted m-0">Av. das Patas, 1234 - Jardins, SP</p>
+                <nav aria-label="Navegação estrutural" class="mb-3 pt-3">
+                    <ol class="breadcrumb-premium">
+                        <li><a onclick="router('home')"><i class="bi bi-house-fill me-1"></i>Início</a></li>
+                        <li aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+                        <li aria-current="page">Favoritos</li>
+                    </ol>
+                </nav>
+                <div class="d-flex align-items-center gap-3 mb-5">
+                    <div class="section-icon"><i class="bi bi-heart-fill text-danger"></i></div>
+                    <div>
+                        <h1 class="fw-bold mb-0">Meus Favoritos</h1>
+                        <p class="text-muted mb-0">Produtos que você salvou</p>
+                    </div>
+                </div>
+                <div id="wishlist-grid" class="row g-4" aria-live="polite"></div>
+            </div>
+        </section>
+
+        <!-- ===================== SOBRE NÓS ===================== -->
+        <section id="view-about" class="view-section d-none" aria-label="Sobre a Helvinho Rações">
+
+            <!-- Hero Banner da página -->
+            <div class="about-page-hero" aria-hidden="false">
+                <div class="about-page-hero-overlay" aria-hidden="true"></div>
+                <div class="container position-relative z-2 py-5">
+                    <nav aria-label="Navegação estrutural" class="mb-4 pt-3">
+                        <ol class="breadcrumb-premium breadcrumb-light">
+                            <li><a onclick="router('home')"><i class="bi bi-house-fill me-1"></i>Início</a></li>
+                            <li aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+                            <li aria-current="page">Quem Somos</li>
+                        </ol>
+                    </nav>
+                    <div class="text-white" data-aos="fade-up">
+                        <span class="about-hero-badge">Desde 2018</span>
+                        <h1 class="about-hero-title">Amor pelos animais<br>desde o primeiro dia.</h1>
+                        <p class="about-hero-sub">Somos a Helvinho Rações — loja de bairro, atendimento de família.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container py-5">
+
+                <!-- História + Foto -->
+                <div class="row align-items-center g-5 mb-5">
+                    <div class="col-lg-6" data-aos="fade-right">
+                        <span class="section-badge">Nossa História</span>
+                        <h2 class="section-title">Uma loja criada<br>por amor aos pets.</h2>
+                        <p class="text-muted mb-3">Tudo começou com uma paixão: o Helvinho sempre foi apaixonado por animais e queria oferecer à vizinhança produtos de qualidade com preço justo, sem precisar ir longe.</p>
+                        <p class="text-muted mb-4">Hoje somos referência na região com um estoque completo de rações para cães, gatos e outros animais, além de acessórios, produtos de higiene e medicamentos — tudo em um lugar só, com atendimento pessoal e de confiança.</p>
+
+                        <!-- Diferenciais rápidos -->
+                        <div class="about-quick-list">
+                            <div class="about-quick-item">
+                                <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+                                <span>Produtos de marcas reconhecidas e testadas</span>
                             </div>
-                        </div>
-                        <div class="d-flex gap-3 mb-4">
-                            <div class="bg-soft-green p-3 rounded-circle text-primary"><i class="bi bi-whatsapp fs-4"></i></div>
-                            <div>
-                                <h5 class="fw-bold mb-1">WhatsApp</h5>
-                                <p class="text-muted m-0">(11) 99999-9999</p>
+                            <div class="about-quick-item">
+                                <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+                                <span>Preço justo sem abrir mão da qualidade</span>
+                            </div>
+                            <div class="about-quick-item">
+                                <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+                                <span>Atendimento personalizado para cada tutor</span>
+                            </div>
+                            <div class="about-quick-item">
+                                <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+                                <span>Entregas rápidas pelo WhatsApp</span>
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-6">
-                        <div class="card border-0 shadow-lg rounded-4 p-4">
-                            <h4 class="mb-4">Envie uma mensagem</h4>
-                            <form onsubmit="event.preventDefault(); showToast('Mensagem enviada com sucesso!'); this.reset();">
-                                <div class="mb-3"><input type="text" class="form-control bg-light border-0 py-2" placeholder="Seu Nome" required></div>
-                                <div class="mb-3"><input type="email" class="form-control bg-light border-0 py-2" placeholder="Seu E-mail" required></div>
-                                <div class="mb-3"><textarea class="form-control bg-light border-0" rows="4" placeholder="Como podemos ajudar?" required></textarea></div>
-                                <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Enviar</button>
+                    <div class="col-lg-6" data-aos="zoom-in">
+                        <div class="about-photo-frame">
+                            <img src="https://images.unsplash.com/photo-1601758003122-53c40e686a19?auto=format&fit=crop&w=700&q=80"
+                                 alt="Pet shop com prateleiras de produtos para animais" loading="lazy" class="about-photo-img">
+                            <div class="about-photo-badge" data-aos="fade-up" data-aos-delay="300">
+                                <i class="bi bi-award-fill text-warning me-2" aria-hidden="true"></i>
+                                <div>
+                                    <strong class="d-block" style="font-size:.82rem;">+6 anos</strong>
+                                    <small class="text-muted" style="font-size:.72rem;">servindo a comunidade</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats animados -->
+                <div class="stats-section mb-5" data-aos="fade-up">
+                    <div class="row g-4 text-center">
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card-premium">
+                                <div class="stat-icon" aria-hidden="true"><i class="bi bi-bag-heart-fill text-success"></i></div>
+                                <h2 class="stat-number" data-target="200" data-suffix="+">0</h2>
+                                <p class="stat-label">Produtos</p>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card-premium">
+                                <div class="stat-icon" aria-hidden="true"><i class="bi bi-people-fill text-primary"></i></div>
+                                <h2 class="stat-number" data-target="500" data-suffix="+">0</h2>
+                                <p class="stat-label">Clientes Ativos</p>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card-premium">
+                                <div class="stat-icon" aria-hidden="true"><i class="bi bi-star-fill text-warning"></i></div>
+                                <h2 class="stat-number" data-target="98" data-suffix="%">0</h2>
+                                <p class="stat-label">Satisfação</p>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="stat-card-premium">
+                                <div class="stat-icon" aria-hidden="true"><i class="bi bi-calendar-check-fill text-success"></i></div>
+                                <h2 class="stat-number" data-target="6" data-suffix=" anos">0</h2>
+                                <p class="stat-label">de Mercado</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nossos Valores -->
+                <div class="text-center mb-5" data-aos="fade-up">
+                    <span class="section-badge">O que nos move</span>
+                    <h2 class="section-title">Nossos Valores</h2>
+                </div>
+                <div class="row g-4 mb-5">
+                    <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="0">
+                        <div class="value-card">
+                            <div class="value-card-icon" style="background: #e8f5ee; color: #2d9e5f;" aria-hidden="true">
+                                <i class="bi bi-heart-fill"></i>
+                            </div>
+                            <h5 class="fw-bold mb-2">Amor aos Animais</h5>
+                            <p class="text-muted small mb-0">Cada produto é escolhido pensando no bem-estar e na saúde do seu pet.</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="80">
+                        <div class="value-card">
+                            <div class="value-card-icon" style="background: #fff3e0; color: #ff6b35;" aria-hidden="true">
+                                <i class="bi bi-currency-dollar"></i>
+                            </div>
+                            <h5 class="fw-bold mb-2">Preço Justo</h5>
+                            <p class="text-muted small mb-0">Trabalhamos para que qualidade não seja privilégio de poucos.</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="160">
+                        <div class="value-card">
+                            <div class="value-card-icon" style="background: #e3f2fd; color: #1976d2;" aria-hidden="true">
+                                <i class="bi bi-shield-check-fill"></i>
+                            </div>
+                            <h5 class="fw-bold mb-2">Confiança</h5>
+                            <p class="text-muted small mb-0">Vendemos apenas produtos de procedência garantida e marcas confiáveis.</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3" data-aos="fade-up" data-aos-delay="240">
+                        <div class="value-card">
+                            <div class="value-card-icon" style="background: #fce4ec; color: #e91e63;" aria-hidden="true">
+                                <i class="bi bi-chat-heart-fill"></i>
+                            </div>
+                            <h5 class="fw-bold mb-2">Atendimento</h5>
+                            <p class="text-muted small mb-0">Tratamos cada cliente como um vizinho — com paciência e atenção real.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline -->
+                <div class="row g-5 align-items-start mb-5">
+                    <div class="col-lg-5" data-aos="fade-right">
+                        <span class="section-badge">Nossa Trajetória</span>
+                        <h2 class="section-title">Uma história de<br>crescimento constante.</h2>
+                        <p class="text-muted">De uma pequena loja de bairro a um petshop completo — sempre com o mesmo cuidado do início.</p>
+                    </div>
+                    <div class="col-lg-7" data-aos="fade-left">
+                        <div class="about-timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker" aria-hidden="true"></div>
+                                <div class="timeline-content">
+                                    <span class="timeline-year">2018</span>
+                                    <h6 class="fw-bold mb-1">A Abertura</h6>
+                                    <p class="text-muted small mb-0">Abrimos as portas com foco em rações de qualidade e atendimento próximo ao cliente da região.</p>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker" aria-hidden="true"></div>
+                                <div class="timeline-content">
+                                    <span class="timeline-year">2020</span>
+                                    <h6 class="fw-bold mb-1">Crescimento no Bairro</h6>
+                                    <p class="text-muted small mb-0">Nos tornamos a loja pet de confiança da vizinhança, ampliando o espaço físico para melhor atender.</p>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker" aria-hidden="true"></div>
+                                <div class="timeline-content">
+                                    <span class="timeline-year">2021</span>
+                                    <h6 class="fw-bold mb-1">Estoque Completo</h6>
+                                    <p class="text-muted small mb-0">Passamos a oferecer acessórios, medicamentos e produtos de higiene, sendo a loja completa que o tutor precisa.</p>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker" aria-hidden="true"></div>
+                                <div class="timeline-content">
+                                    <span class="timeline-year">2024</span>
+                                    <h6 class="fw-bold mb-1">Pedidos pelo WhatsApp</h6>
+                                    <p class="text-muted small mb-0">Lançamos o atendimento e entrega pelo WhatsApp — praticidade total para nossos clientes.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Equipe -->
+                <div class="text-center mb-5" data-aos="fade-up">
+                    <span class="section-badge">Nossa Equipe</span>
+                    <h2 class="section-title">Quem atende você</h2>
+                    <p class="text-muted">Pessoas que amam animais tanto quanto você</p>
+                </div>
+                <div class="row g-4 pb-5 justify-content-center">
+                    <div class="col-md-5 col-lg-4" data-aos="fade-up" data-aos-delay="0">
+                        <div class="team-card team-card-featured">
+                            <div class="team-owner-badge">Fundador</div>
+                            <div class="team-img-frame">
+                                <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80" alt="Helvinho — Proprietário" loading="lazy">
+                            </div>
+                            <h5 class="fw-bold mb-1">Helvinho</h5>
+                            <p class="team-role">Proprietário & Especialista em Nutrição Pet</p>
+                            <p class="text-muted small">"Abri essa loja porque queria que todo tutor da região tivesse acesso ao melhor para o seu animal, sem pagar caro por isso."</p>
+                            <a href="https://wa.me/5511999999999" target="_blank" class="team-wa-btn">
+                                <i class="bi bi-whatsapp me-2" aria-hidden="true"></i>Falar com o Helvinho
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-5 col-lg-4" data-aos="fade-up" data-aos-delay="120">
+                        <div class="team-card">
+                            <div class="team-img-frame">
+                                <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&q=80" alt="Júlia — Atendimento" loading="lazy">
+                            </div>
+                            <h5 class="fw-bold mb-1">Júlia</h5>
+                            <p class="team-role">Atendimento & Indicação de Produtos</p>
+                            <p class="text-muted small">Simpática, paciente e apaixonada por bichinhos. Vai te ajudar a escolher o produto certo para o seu pet com todo carinho.</p>
+                            <div class="team-socials">
+                                <a href="#" aria-label="Instagram da Júlia" onclick="return false;"><i class="bi bi-instagram"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ===================== CONTATO ===================== -->
+        <section id="view-contact" class="view-section d-none" aria-label="Contato">
+
+            <!-- Hero banner do contato -->
+            <div class="contact-page-hero">
+                <div class="contact-page-hero-overlay" aria-hidden="true"></div>
+                <div class="container position-relative z-2 py-5">
+                    <nav aria-label="Navegação estrutural" class="mb-4 pt-3">
+                        <ol class="breadcrumb-premium breadcrumb-light">
+                            <li><a onclick="router('home')"><i class="bi bi-house-fill me-1"></i>Início</a></li>
+                            <li aria-hidden="true"><i class="bi bi-chevron-right"></i></li>
+                            <li aria-current="page">Contato</li>
+                        </ol>
+                    </nav>
+                    <div class="text-white" data-aos="fade-up">
+                        <span class="about-hero-badge">Atendemos de segunda a domingo</span>
+                        <h1 class="about-hero-title">Fale com a gente!</h1>
+                        <p class="about-hero-sub">Tire dúvidas, faça pedidos ou venha nos visitar — estamos sempre aqui.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container py-5">
+
+                <!-- CTA WhatsApp em destaque -->
+                <div class="whatsapp-cta-card" data-aos="zoom-in">
+                    <div class="whatsapp-cta-left">
+                        <div class="whatsapp-cta-icon" aria-hidden="true"><i class="bi bi-whatsapp"></i></div>
+                        <div>
+                            <h4 class="fw-bold mb-1 text-dark">Prefere o WhatsApp?</h4>
+                            <p class="text-muted mb-0">Resposta rápida! Faça pedidos, tire dúvidas e receba em casa.</p>
+                        </div>
+                    </div>
+                    <a href="https://wa.me/5511999999999" target="_blank" class="whatsapp-cta-btn" aria-label="Chamar no WhatsApp agora">
+                        <i class="bi bi-whatsapp me-2" aria-hidden="true"></i>Chamar agora
+                    </a>
+                </div>
+
+                <!-- Informações + Formulário -->
+                <div class="row g-5 mt-2">
+
+                    <!-- Coluna Esquerda: Infos -->
+                    <div class="col-lg-5" data-aos="fade-right">
+
+                        <h2 class="section-title mb-4">Como nos encontrar</h2>
+
+                        <!-- Cards de info -->
+                        <div class="contact-info-grid">
+                            <div class="contact-info-card" data-aos="fade-up" data-aos-delay="0">
+                                <div class="contact-info-icon-box" style="background:#e8f5ee;" aria-hidden="true">
+                                    <i class="bi bi-geo-alt-fill text-success"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Endereço</h6>
+                                    <p class="text-muted small mb-0">Av. das Patas, 1234<br>Jardins — São Paulo, SP</p>
+                                </div>
+                            </div>
+                            <div class="contact-info-card" data-aos="fade-up" data-aos-delay="60">
+                                <div class="contact-info-icon-box" style="background:#e8f5ee;" aria-hidden="true">
+                                    <i class="bi bi-telephone-fill text-success"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Telefone / WhatsApp</h6>
+                                    <p class="text-muted small mb-0">(11) 99999-9999</p>
+                                    <small class="text-success fw-semibold">Resposta em minutos</small>
+                                </div>
+                            </div>
+                            <div class="contact-info-card" data-aos="fade-up" data-aos-delay="120">
+                                <div class="contact-info-icon-box" style="background:#e3f2fd;" aria-hidden="true">
+                                    <i class="bi bi-envelope-fill text-primary"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1">E-mail</h6>
+                                    <p class="text-muted small mb-0">contato@helvinhoracoes.com.br</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Horários visuais -->
+                        <div class="hours-card mt-4" data-aos="fade-up" data-aos-delay="100">
+                            <div class="hours-card-header">
+                                <i class="bi bi-clock-fill me-2 text-success" aria-hidden="true"></i>
+                                <h6 class="fw-bold mb-0">Horários de Atendimento</h6>
+                            </div>
+                            <div class="hours-list">
+                                <div class="hours-row">
+                                    <span class="hours-day">Segunda a Sexta</span>
+                                    <span class="hours-time open">8h às 20h</span>
+                                </div>
+                                <div class="hours-row">
+                                    <span class="hours-day">Sábado</span>
+                                    <span class="hours-time open">9h às 18h</span>
+                                </div>
+                                <div class="hours-row">
+                                    <span class="hours-day">Domingo</span>
+                                    <span class="hours-time open">10h às 16h</span>
+                                </div>
+                            </div>
+                            <div class="hours-status" id="loja-status" aria-live="polite"></div>
+                        </div>
+
+                        <!-- Redes sociais -->
+                        <div class="mt-4" data-aos="fade-up" data-aos-delay="140">
+                            <p class="fw-semibold text-dark mb-3">Siga a gente nas redes:</p>
+                            <div class="contact-socials">
+                                <a href="#" class="contact-social-link" aria-label="Instagram" onclick="return false;"><i class="bi bi-instagram"></i></a>
+                                <a href="#" class="contact-social-link" aria-label="Facebook" onclick="return false;"><i class="bi bi-facebook"></i></a>
+                                <a href="#" class="contact-social-link" aria-label="TikTok" onclick="return false;"><i class="bi bi-tiktok"></i></a>
+                                <a href="#" class="contact-social-link" aria-label="YouTube" onclick="return false;"><i class="bi bi-youtube"></i></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coluna Direita: Formulário + FAQ -->
+                    <div class="col-lg-7" data-aos="fade-left">
+                        <div class="contact-form-card">
+                            <div class="d-flex align-items-center gap-3 mb-4">
+                                <div class="section-icon" aria-hidden="true"><i class="bi bi-chat-dots-fill text-success"></i></div>
+                                <div>
+                                    <h3 class="fw-bold mb-0">Envie uma mensagem</h3>
+                                    <p class="text-muted small mb-0">Respondemos em até 24 horas</p>
+                                </div>
+                            </div>
+                            <form onsubmit="handleContactForm(event)" novalidate>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-sm-6">
+                                        <label for="contact-name" class="form-label fw-semibold small">Nome <span class="text-danger" aria-hidden="true">*</span></label>
+                                        <input type="text" id="contact-name" class="form-input-premium" placeholder="Seu nome completo" required aria-required="true">
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label for="contact-phone" class="form-label fw-semibold small">WhatsApp / Telefone</label>
+                                        <input type="tel" id="contact-phone" class="form-input-premium" placeholder="(11) 99999-9999">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="contact-email" class="form-label fw-semibold small">E-mail</label>
+                                    <input type="email" id="contact-email" class="form-input-premium" placeholder="seu@email.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="contact-subject" class="form-label fw-semibold small">Assunto <span class="text-danger" aria-hidden="true">*</span></label>
+                                    <select id="contact-subject" class="form-input-premium" required aria-required="true">
+                                        <option value="">Selecione um assunto...</option>
+                                        <option>Dúvida sobre produto</option>
+                                        <option>Pedido / Entrega</option>
+                                        <option>Disponibilidade de estoque</option>
+                                        <option>Preço ou promoção</option>
+                                        <option>Parceria comercial</option>
+                                        <option>Outro</option>
+                                    </select>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="contact-message" class="form-label fw-semibold small">Mensagem <span class="text-danger" aria-hidden="true">*</span></label>
+                                    <textarea id="contact-message" class="form-input-premium" rows="4" placeholder="Descreva como podemos ajudar você e o seu pet..." required aria-required="true"></textarea>
+                                </div>
+                                <button type="submit" class="btn-hero-primary w-100">
+                                    <i class="bi bi-send-fill me-2" aria-hidden="true"></i>
+                                    <span>Enviar Mensagem</span>
+                                </button>
                             </form>
                         </div>
+
+                        <!-- FAQ rápido -->
+                        <div class="faq-section mt-4" data-aos="fade-up">
+                            <h5 class="fw-bold mb-3">Perguntas frequentes</h5>
+                            <div class="faq-list">
+                                <details class="faq-item">
+                                    <summary class="faq-question">Vocês fazem entrega?</summary>
+                                    <p class="faq-answer">Sim! Fazemos entregas na região pelo WhatsApp. É só chamar, confirmar o pedido e combinamos a entrega.</p>
+                                </details>
+                                <details class="faq-item">
+                                    <summary class="faq-question">Posso pagar no Pix ou cartão?</summary>
+                                    <p class="faq-answer">Aceitamos Pix, cartão de débito e crédito, e dinheiro. No delivery aceitamos Pix ou dinheiro na entrega.</p>
+                                </details>
+                                <details class="faq-item">
+                                    <summary class="faq-question">Vocês têm ração para gatos?</summary>
+                                    <p class="faq-answer">Sim! Trabalhamos com rações para cães, gatos, pássaros, roedores e outros pequenos animais.</p>
+                                </details>
+                                <details class="faq-item">
+                                    <summary class="faq-question">Posso comprar medicamentos sem receita?</summary>
+                                    <p class="faq-answer">Vendemos antipulgas, vermífugos e suplementos de venda livre. Para medicamentos controlados é necessária receita veterinária.</p>
+                                </details>
+                            </div>
+                        </div>
                     </div>
+
                 </div>
             </div>
         </section>
+
     </main>
 
-    <footer class="bg-dark text-light py-5 mt-5">
-        <div class="container">
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <div class="brand-mark brand-mark-footer">
-                            <img src="assets/dog.png" alt="EcoPet - logo cachorro" class="brand-logo">
+    <!-- Footer Premium -->
+    <footer class="footer-premium" role="contentinfo">
+        <div class="footer-top">
+            <div class="container">
+                <div class="row g-5">
+                    <div class="col-lg-4">
+                        <div class="footer-brand d-flex align-items-center gap-2 mb-3">
+                            <div class="brand-mark brand-mark-footer">
+                                <img src="assets/dog.png" alt="Logo Helvinho Rações" class="brand-logo" loading="lazy"
+                                     onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'bi bi-emoji-smile-fill text-success\'></i>';">
+                            </div>
+                            <span class="fw-bold fs-5 text-white">Helvinho<span class="text-success">Rações</span></span>
                         </div>
-                        <span class="fw-bold fs-5">
-                            Helvinho<span class="text-success">Rações</span>
-                        </span>
+                        <p class="footer-desc">Loja especializada em rações, acessórios, shampoos e medicamentos para animais. Atendimento próximo e preço justo.</p>
+                        <div class="footer-socials mt-4">
+                            <a href="#" class="footer-social" aria-label="Instagram" onclick="return false;"><i class="bi bi-instagram"></i></a>
+                            <a href="#" class="footer-social" aria-label="Facebook" onclick="return false;"><i class="bi bi-facebook"></i></a>
+                            <a href="#" class="footer-social" aria-label="TikTok" onclick="return false;"><i class="bi bi-tiktok"></i></a>
+                            <a href="#" class="footer-social" aria-label="YouTube" onclick="return false;"><i class="bi bi-youtube"></i></a>
+                        </div>
                     </div>
-                    <p class="text-secondary small">Cuidando do planeta e do seu melhor amigo com produtos sustentáveis.</p>
-                </div>
-                <div class="col-md-2">
-                    <h6 className="fw-bold mb-3 text-white">Menu</h6>
-                    <ul class="list-unstyled small text-secondary d-flex flex-column gap-2">
-                        <li><a onclick="router('shop')" class="text-decoration-none text-secondary hover-white cursor-pointer">Loja</a></li>
-                        <li><a onclick="router('about')" class="text-decoration-none text-secondary hover-white cursor-pointer">Quem Somos</a></li>
-                        <li><a onclick="router('contact')" class="text-decoration-none text-secondary hover-white cursor-pointer">Contato</a></li>
-                    </ul>
-                </div>
-                <div class="col-md-6 text-md-end">
-                    <h6 class="fw-bold mb-3 text-white">Pagamento Seguro</h6>
-                    <div class="d-flex gap-2 justify-content-md-end text-secondary fs-4">
-                        <i class="bi bi-credit-card"></i>
-                        <i class="bi bi-paypal"></i>
-                        <i class="bi bi-qr-code"></i>
+                    <div class="col-sm-6 col-lg-2">
+                        <h6 class="footer-heading">Navegação</h6>
+                        <ul class="footer-links">
+                            <li><a onclick="router('home')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Início</a></li>
+                            <li><a onclick="router('shop')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Loja</a></li>
+                            <li><a onclick="router('about')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Quem Somos</a></li>
+                            <li><a onclick="router('contact')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Contato</a></li>
+                        </ul>
                     </div>
+                    <div class="col-sm-6 col-lg-2">
+                        <h6 class="footer-heading">Categorias</h6>
+                        <ul class="footer-links">
+                            <li><a onclick="filterAndGo('Ração')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Rações</a></li>
+                            <li><a onclick="filterAndGo('Acessórios')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Acessórios</a></li>
+                            <li><a onclick="filterAndGo('Higiene')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Higiene</a></li>
+                            <li><a onclick="filterAndGo('Medicamentos')"><i class="bi bi-chevron-right me-1" aria-hidden="true"></i>Medicamentos</a></li>
+                        </ul>
+                    </div>
+                    <div class="col-lg-4">
+                        <h6 class="footer-heading">Newsletter</h6>
+                        <p class="footer-desc">Receba promoções e dicas de saúde para o seu pet.</p>
+                        <form class="footer-newsletter" onsubmit="handleNewsletter(event)" novalidate>
+                            <label for="footer-newsletter-email" class="visually-hidden">E-mail para newsletter</label>
+                            <input type="email" id="footer-newsletter-email" placeholder="Seu e-mail..." required aria-required="true">
+                            <button type="submit" aria-label="Assinar newsletter"><i class="bi bi-send-fill"></i></button>
+                        </form>
+                        <div class="footer-payment mt-4">
+                            <p class="footer-desc small mb-2">Pagamento Seguro:</p>
+                            <div class="d-flex gap-3 text-muted fs-4" aria-label="Métodos de pagamento aceitos">
+                                <i class="bi bi-credit-card-fill" title="Cartão de Crédito"></i>
+                                <i class="bi bi-paypal" title="PayPal"></i>
+                                <i class="bi bi-qr-code" title="Pix"></i>
+                                <i class="bi bi-cash-stack" title="Dinheiro"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <p class="mb-0 small">© 2024 Helvinho Rações. Todos os direitos reservados.</p>
+                    <p class="mb-0 small text-muted">Feito com <i class="bi bi-heart-fill text-success mx-1" aria-hidden="true"></i> para pets e tutores</p>
                 </div>
             </div>
         </div>
     </footer>
 
-    <div class="offcanvas offcanvas-end border-0 shadow-lg" tabindex="-1" id="cartOffcanvas">
-        <div class="offcanvas-header bg-white border-bottom">
-            <h5 class="offcanvas-title fw-bold text-dark"><i class="bi bi-bag-check me-2 text-success"></i>Sua Sacola</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    <!-- Carrinho Offcanvas -->
+    <div class="offcanvas offcanvas-end cart-offcanvas border-0" tabindex="-1" id="cartOffcanvas" aria-labelledby="cartOffcanvasLabel">
+        <div class="offcanvas-header cart-offcanvas-header">
+            <h5 class="offcanvas-title fw-bold" id="cartOffcanvasLabel">
+                <i class="bi bi-bag-check-fill me-2 text-success" aria-hidden="true"></i>Sua Sacola
+            </h5>
+            <button type="button" class="btn-close btn-close-dark" data-bs-dismiss="offcanvas" aria-label="Fechar sacola"></button>
         </div>
-        <div class="offcanvas-body d-flex flex-column bg-light-gray p-0">
-            <div id="cart-items-container" class="flex-grow-1 overflow-auto p-4 custom-scrollbar"></div>
-            <div class="cart-footer bg-white p-4 shadow-top border-top">
-                <div class="d-flex justify-content-between mb-3 align-items-end">
+        <div class="offcanvas-body d-flex flex-column p-0">
+            <div id="cart-items-container" class="flex-grow-1 overflow-auto p-4 custom-scrollbar" aria-live="polite" aria-label="Itens no carrinho"></div>
+            <div class="cart-footer-panel">
+                <div class="d-flex justify-content-between mb-2 align-items-center">
                     <span class="text-muted small">Subtotal</span>
-                    <span class="fs-4 fw-bold text-dark" id="cart-subtotal">R$ 0,00</span>
+                    <span class="fs-4 fw-bold text-dark" id="cart-subtotal" aria-live="polite">R$ 0,00</span>
                 </div>
-                <button onclick="checkoutWhatsApp()" class="btn btn-primary w-100 py-3 rounded-3 fw-bold shadow-sm hover-up">
-                    <i class="bi bi-whatsapp me-2"></i>Finalizar Pedido
+                <p class="text-muted small mb-3"><i class="bi bi-truck me-1 text-success" aria-hidden="true"></i>Frete grátis acima de R$ 199</p>
+                <button onclick="checkoutWhatsApp()" class="btn-checkout w-100" aria-label="Finalizar pedido pelo WhatsApp">
+                    <i class="bi bi-whatsapp me-2" aria-hidden="true"></i>Finalizar pelo WhatsApp
                 </button>
             </div>
         </div>
     </div>
 
-    <div class="modal fade" id="quickViewModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4 border-0 overflow-hidden">
+    <!-- Modal Quick View -->
+    <div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content modal-premium border-0">
                 <div class="modal-body p-0">
-                    <div class="position-relative">
-                        <img id="qv-img" src="" class="w-100 object-fit-cover" style="height: 300px;" alt="Visualização rápida do produto">
-                        <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white p-2" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="p-4">
-                        <span id="qv-category" class="badge bg-soft-green text-primary mb-2">Categoria</span>
-                        <h4 id="qv-name" class="fw-bold mb-2">Nome do Produto</h4>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h3 id="qv-price" class="text-primary fw-bold m-0">R$ 0,00</h3>
-                            <button id="qv-btn" class="btn btn-primary rounded-pill px-4">Adicionar</button>
+                    <div class="row g-0">
+                        <div class="col-md-5">
+                            <div class="qv-img-side position-relative">
+                                <img id="qv-img" src="" class="w-100 h-100 object-fit-cover" alt="" style="min-height:320px;">
+                                <button type="button" class="qv-close-btn" data-bs-dismiss="modal" aria-label="Fechar"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-md-7 p-4 d-flex flex-column justify-content-center">
+                            <span id="qv-category" class="badge bg-success-subtle text-success mb-3 align-self-start px-3 py-2 rounded-pill"></span>
+                            <h4 id="qv-name" class="fw-bold mb-2"></h4>
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <div class="text-warning" aria-label="Avaliação: 5 estrelas">
+                                    <i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i><i class="bi bi-star-fill"></i>
+                                </div>
+                                <small class="text-muted">(42 avaliações)</small>
+                            </div>
+                            <div id="qv-desc" class="text-muted small mb-4">Produto premium de alta qualidade, selecionado especialmente para o bem-estar do seu pet.</div>
+                            <div class="d-flex align-items-center justify-content-between mb-4">
+                                <h3 id="qv-price" class="text-success fw-bold m-0"></h3>
+                                <small class="text-muted">Em até 3x sem juros</small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button id="qv-btn" class="btn-hero-primary flex-grow-1">
+                                    <i class="bi bi-bag-plus me-2"></i>Adicionar à Sacola
+                                </button>
+                                <button id="qv-wish-btn" class="btn-icon-outline" aria-label="Adicionar aos favoritos">
+                                    <i class="bi bi-heart"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -403,54 +988,67 @@
         </div>
     </div>
 
-    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+    <!-- Modal Checkout -->
+    <div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4 border-0">
+            <div class="modal-content modal-premium border-0 p-2">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">Como deseja receber?</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title fw-bold" id="checkoutModalLabel">
+                        <i class="bi bi-bag-check-fill text-success me-2" aria-hidden="true"></i>Como deseja receber?
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <ul class="nav nav-pills nav-fill mb-3 gap-2" id="pills-tab" role="tablist">
-                        <li class="nav-item">
-                            <button class="nav-link active rounded-pill fw-bold border" id="pills-delivery-tab" data-bs-toggle="pill" data-bs-target="#pills-delivery">
-                                Entrega
+                    <ul class="nav nav-pills nav-fill mb-4 gap-2" id="pills-tab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active rounded-3 fw-semibold" id="pills-delivery-tab" data-bs-toggle="pill" data-bs-target="#pills-delivery" type="button" role="tab" aria-selected="true">
+                                <i class="bi bi-truck me-1" aria-hidden="true"></i>Entrega
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link rounded-pill fw-bold border" id="pills-pickup-tab" data-bs-toggle="pill" data-bs-target="#pills-pickup">
-                                Retirada
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link rounded-3 fw-semibold" id="pills-pickup-tab" data-bs-toggle="pill" data-bs-target="#pills-pickup" type="button" role="tab" aria-selected="false">
+                                <i class="bi bi-shop me-1" aria-hidden="true"></i>Retirada
                             </button>
                         </li>
                     </ul>
                     <div class="tab-content" id="pills-tabContent">
-                        <div class="tab-pane fade show active" id="pills-delivery">
+                        <div class="tab-pane fade show active" id="pills-delivery" role="tabpanel">
                             <div class="mb-3">
-                                <textarea id="delivery-address" class="form-control bg-light border-0" rows="2" placeholder="Endereço Completo..."></textarea>
+                                <label for="delivery-address" class="form-label fw-semibold small">Endereço de Entrega</label>
+                                <textarea id="delivery-address" class="form-input-premium" rows="2" placeholder="Rua, número, bairro, CEP..." aria-required="true"></textarea>
                             </div>
                             <div class="mb-3">
-                                <select id="payment-method" class="form-select bg-light border-0">
-                                    <option value="Pix">Pix</option>
-                                    <option value="Cartão">Cartão</option>
+                                <label for="payment-method" class="form-label fw-semibold small">Forma de Pagamento</label>
+                                <select id="payment-method" class="form-input-premium">
+                                    <option value="Pix">Pix (5% de desconto)</option>
+                                    <option value="Cartão">Cartão de Crédito</option>
+                                    <option value="Dinheiro">Dinheiro</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="tab-pane fade" id="pills-pickup">
-                            <div class="alert alert-success bg-soft-green border-0 text-center">
-                                <p class="fw-bold m-0">Loja Física: Av. das Patas, 1234</p>
+                        <div class="tab-pane fade" id="pills-pickup" role="tabpanel">
+                            <div class="pickup-info-card text-center p-4">
+                                <i class="bi bi-geo-alt-fill text-success fs-2 mb-3" aria-hidden="true"></i>
+                                <h6 class="fw-bold">Av. das Patas, 1234</h6>
+                                <p class="text-muted small mb-0">Jardins, São Paulo — SP</p>
+                                <p class="text-muted small">Seg–Sex: 8h–20h | Sáb: 9h–18h</p>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" onclick="finalizeOrder()">Confirmar</button>
+                    <button type="button" class="btn-hero-primary w-100" onclick="finalizeOrder()">
+                        <i class="bi bi-whatsapp me-2" aria-hidden="true"></i>Confirmar via WhatsApp
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
