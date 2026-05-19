@@ -10,14 +10,28 @@
     <meta property="og:description" content="Rações, acessórios, higiene e medicamentos — tudo para o seu animal de estimação.">
     <meta property="og:type" content="website">
 
+    <!-- Preconnect / DNS prefetch para CDNs externos -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://unpkg.com">
+    <link rel="dns-prefetch" href="https://images.unsplash.com">
 
+    <!-- Poppins: apenas os pesos realmente usados (salva ~40 KB) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- CSS crítico: Bootstrap + Icons (render-blocking intencional — usados above the fold) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css">
+
+    <!-- CSS não-crítico: carregado de forma não-bloqueante -->
+    <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css">
+    </noscript>
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -154,7 +168,7 @@
                             <div class="hero-img-wrapper">
                                 <div class="hero-blob" aria-hidden="true"></div>
                                 <div class="hero-blob hero-blob-2" aria-hidden="true"></div>
-                                <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&auto=format&fit=crop&w=700&q=85" class="hero-img" alt="Cachorro feliz e saudável em ambiente natural" loading="eager">
+                                <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&auto=format&fit=crop&w=700&q=85" class="hero-img" alt="Cachorro feliz e saudável em ambiente natural" loading="eager" fetchpriority="high" width="700" height="700" decoding="async">
                                 <!-- Floating cards -->
                                 <div class="hero-float-card hero-float-1" data-aos="fade-left" data-aos-delay="600">
                                     <i class="bi bi-shield-check text-success"></i>
@@ -438,7 +452,7 @@
         <section id="view-about" class="view-section d-none" aria-label="Sobre a Helvinho Rações">
 
             <!-- Hero Banner da página -->
-            <div class="about-page-hero" aria-hidden="false">
+            <div class="about-page-hero">
                 <div class="about-page-hero-overlay" aria-hidden="true"></div>
                 <div class="container position-relative z-2 py-5">
                     <nav aria-label="Navegação estrutural" class="mb-4 pt-3">
@@ -996,9 +1010,15 @@
                                 <small class="text-muted">(42 avaliações)</small>
                             </div>
                             <div id="qv-desc" class="text-muted small mb-4">Produto premium de alta qualidade, selecionado especialmente para o bem-estar do seu pet.</div>
-                            <div class="d-flex align-items-center justify-content-between mb-4">
-                                <h3 id="qv-price" class="text-success fw-bold m-0"></h3>
-                                <small class="text-muted">Em até 3x sem juros</small>
+                            <div class="mb-4">
+                                <div id="qv-original-price-row" class="d-none mb-1">
+                                    <span class="text-muted text-decoration-line-through small me-2" id="qv-original-price"></span>
+                                    <span class="badge bg-danger text-white small" id="qv-discount-badge"></span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <h3 id="qv-price" class="text-success fw-bold m-0"></h3>
+                                    <small class="text-muted">Em até 3x sem juros</small>
+                                </div>
                             </div>
                             <div class="d-flex gap-2">
                                 <button id="qv-btn" class="btn-hero-primary flex-grow-1">
@@ -1072,10 +1092,10 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
-    <script src="script.js"></script>
+    <!-- Scripts — defer: baixados em paralelo, executados após parse -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js" defer></script>
+    <script src="script.js" defer></script>
 </body>
 </html>

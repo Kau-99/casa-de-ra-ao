@@ -112,6 +112,21 @@ function bsModal(id)    { return bootstrap.Modal.getOrCreateInstance(document.ge
 function bsOffcanvas(id){ const el = document.getElementById(id); return el ? bootstrap.Offcanvas.getOrCreateInstance(el) : null; }
 
 /* ============================================================
+   DOM CACHE — evita querySelectorAll repetido no router
+============================================================ */
+let _domCache = null;
+function dom() {
+    if (!_domCache) {
+        _domCache = {
+            views:   Array.from(document.querySelectorAll('.view-section')),
+            navLinks: Array.from(document.querySelectorAll('.nav-link[data-target]')),
+            glassNav: document.querySelector('.glass-nav')
+        };
+    }
+    return _domCache;
+}
+
+/* ============================================================
    INICIALIZAÇÃO
 ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -130,9 +145,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const hash = window.location.hash.replace('#', '');
     router(hash && document.getElementById('view-' + hash) ? hash : 'home');
 
-    window.addEventListener('scroll', handleNavScroll);
+    // Scroll passivo + RAF throttle — nunca bloqueia o thread principal
+    let _scrollTicking = false;
+    window.addEventListener('scroll', () => {
+        if (!_scrollTicking) {
+            requestAnimationFrame(() => { handleNavScroll(); _scrollTicking = false; });
+            _scrollTicking = true;
+        }
+    }, { passive: true });
+
     window.addEventListener('hashchange', () => {
-        if (_routerBusy) return; // evita loop router → hashchange → router
+        if (_routerBusy) return;
         const h = window.location.hash.replace('#', '');
         if (h) router(h);
     });
@@ -142,17 +165,18 @@ document.addEventListener('DOMContentLoaded', () => {
 function initLoader() {
     const el = document.getElementById('loader');
     if (!el) return;
+    // 400 ms é suficiente para o JS estar pronto — não há razão para esperar mais
     setTimeout(() => {
         el.style.opacity = '0';
         el.style.pointerEvents = 'none';
-        setTimeout(() => el.remove(), 600);
-    }, 1200);
+        setTimeout(() => el.remove(), 500);
+    }, 400);
 }
 
 /* ---- AOS ---- */
 function initAOS() {
     if (!window.AOS) return;
-    AOS.init({ once: true, offset: 60, duration: 700, easing: 'ease-out-cubic' });
+    AOS.init({ once: true, offset: 60, duration: 700, easing: 'ease-out-cubic', throttleDelay: 99 });
 }
 
 /* ---- SWIPER ---- */
@@ -162,8 +186,9 @@ function initSwiper() {
         slidesPerView: 1,
         spaceBetween: 24,
         loop: true,
-        autoplay: { delay: 5000, disableOnInteraction: false },
+        autoplay: { delay: 5000, disableOnInteraction: false, pauseOnMouseEnter: true },
         pagination: { el: '.testimonials-pagination', clickable: true },
+        watchSlidesProgress: false,
         breakpoints: {
             768:  { slidesPerView: 2 },
             1024: { slidesPerView: 3 }
@@ -181,33 +206,51 @@ function initCustomCursor() {
         return;
     }
 
-    let mx = 0, my = 0, fx = 0, fy = 0;
+    let mx = 0, my = 0, fx = 0, fy = 0, rafId = null, dirty = false;
 
     document.addEventListener('mousemove', e => {
         mx = e.clientX; my = e.clientY;
         cursor.style.left = mx + 'px';
         cursor.style.top  = my + 'px';
-    });
+        if (!dirty) { dirty = true; rafId = requestAnimationFrame(tick); }
+    }, { passive: true });
 
-    (function tick() {
-        fx += (mx - fx) * 0.1;
-        fy += (my - fy) * 0.1;
+    function tick() {
+        const dx = mx - fx, dy = my - fy;
+        fx += dx * 0.1; fy += dy * 0.1;
         follower.style.left = fx + 'px';
         follower.style.top  = fy + 'px';
-        requestAnimationFrame(tick);
-    })();
+        // Para o loop quando o follower converge — economiza CPU quando o mouse está parado
+        if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
+            rafId = requestAnimationFrame(tick);
+        } else {
+            dirty = false;
+        }
+    }
 
-    document.querySelectorAll('a, button, [role="button"], .cursor-pointer').forEach(el => {
-        el.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
-        el.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+    // Pausa o cursor quando a aba fica em segundo plano
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && rafId) { cancelAnimationFrame(rafId); rafId = null; dirty = false; }
+    });
+
+    // Event delegation: cobre elementos futuros (cards renderizados dinamicamente)
+    document.addEventListener('mouseover', e => {
+        if (e.target.closest('a, button, [role="button"], .cursor-pointer')) {
+            document.body.classList.add('cursor-hover');
+        }
+    });
+    document.addEventListener('mouseout', e => {
+        if (e.target.closest('a, button, [role="button"], .cursor-pointer')) {
+            document.body.classList.remove('cursor-hover');
+        }
     });
 }
 
 /* ---- NAVBAR SCROLL ---- */
 function initNavScroll() { handleNavScroll(); }
 function handleNavScroll() {
-    const nav = document.querySelector('.glass-nav');
-    if (nav) nav.classList.toggle('nav-scrolled', window.scrollY > 10);
+    const { glassNav } = dom();
+    if (glassNav) glassNav.classList.toggle('nav-scrolled', window.scrollY > 10);
 }
 
 /* ============================================================
@@ -223,24 +266,26 @@ function router(viewId) {
     window.location.hash = viewId;
     _routerBusy = false;
 
-    // Atualiza links ativos
-    document.querySelectorAll('.nav-link').forEach(link => {
+    const { views, navLinks } = dom();
+
+    // Atualiza links ativos — usa cache em vez de querySelectorAll
+    navLinks.forEach(link => {
         const active = link.getAttribute('data-target') === viewId;
         link.classList.toggle('active', active);
         active ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current');
     });
 
-    // Esconde todas as views
-    document.querySelectorAll('.view-section').forEach(s => {
-        s.classList.remove('active');
-        s.classList.add('d-none');
-    });
+    // Esconde todas as views — usa cache
+    views.forEach(s => { s.classList.remove('active'); s.classList.add('d-none'); });
 
     const target = document.getElementById('view-' + viewId);
     if (target) {
         target.classList.remove('d-none');   // display:block, opacity:0
         void target.offsetWidth;             // força reflow
-        requestAnimationFrame(() => target.classList.add('active')); // opacity:0→1
+        requestAnimationFrame(() => {
+            target.classList.add('active');  // opacity:0→1
+            if (window.AOS) AOS.refresh();   // chama AOS no mesmo frame, sem setTimeout
+        });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -255,7 +300,6 @@ function router(viewId) {
     if (viewId === 'wishlist') renderWishlistPage();
     if (viewId === 'about')    initStatCounters();
     if (viewId === 'contact')  updateLojaStatus();
-    if (window.AOS) setTimeout(() => AOS.refresh(), 220);
 }
 
 /* ============================================================
@@ -320,8 +364,9 @@ function buildProductCard(p, idx) {
         '<div class="card-premium h-100">' +
             '<div class="img-wrapper">' +
                 badgeHtml +
-                '<img src="' + p.img + '" alt="' + escAttr(p.name) + '" loading="lazy"' +
-                     ' onerror="this.src=\'https://placehold.co/300x220/e8f5ee/2d9e5f?text=Produto\'">' +
+                '<img src="' + p.img + '" alt="' + escAttr(p.name) + '"' +
+                     ' loading="lazy" decoding="async" width="400" height="300"' +
+                     ' onerror="this.src=\'https://placehold.co/400x300/e8f5ee/2d9e5f?text=Produto\'">' +
                 '<div class="card-actions" role="group" aria-label="Ações">' +
                     '<button class="action-btn" onclick="openQuickView(' + p.id + ')"' +
                             ' aria-label="Ver detalhes de ' + escAttr(p.name) + '" title="Visualizar">' +
@@ -369,7 +414,14 @@ function buildStars(rating) {
 function renderFeaturedProducts() {
     const grid = document.getElementById('featured-grid');
     if (!grid) return;
-    grid.innerHTML = products.slice(0, 4).map((p, i) => buildProductCard(p, i)).join('');
+    // Pick one product from each category for visual variety
+    const categories = ['Ração', 'Acessórios', 'Higiene', 'Medicamentos'];
+    const featured = categories.map(cat => products.find(p => p.category === cat)).filter(Boolean);
+    // Pad with remaining products if any category is empty
+    if (featured.length < 4) {
+        products.forEach(p => { if (featured.length < 4 && !featured.includes(p)) featured.push(p); });
+    }
+    grid.innerHTML = featured.map((p, i) => buildProductCard(p, i)).join('');
     if (window.AOS) AOS.refresh();
 }
 
@@ -505,6 +557,20 @@ function openQuickView(id) {
 
     const price = document.getElementById('qv-price');
     if (price) price.textContent = formatMoney(p.price);
+
+    const origRow = document.getElementById('qv-original-price-row');
+    const origEl = document.getElementById('qv-original-price');
+    const discBadge = document.getElementById('qv-discount-badge');
+    if (origRow && origEl && discBadge) {
+        if (p.originalPrice) {
+            const pct = Math.round((1 - p.price / p.originalPrice) * 100);
+            origEl.textContent = formatMoney(p.originalPrice);
+            discBadge.textContent = '-' + pct + '%';
+            origRow.classList.remove('d-none');
+        } else {
+            origRow.classList.add('d-none');
+        }
+    }
 
     const cat = document.getElementById('qv-category');
     if (cat) cat.textContent = p.category;
@@ -769,7 +835,8 @@ function toggleWishlist(id, btnEl) {
         wishlist.splice(idx, 1);
         showToast('<i class="bi bi-heart me-2"></i>Removido dos favoritos.');
     } else {
-        wishlist.push({ id: product.id, name: product.name, price: product.price, img: product.img,
+        wishlist.push({ id: product.id, name: product.name, price: product.price,
+                        originalPrice: product.originalPrice, img: product.img,
                         category: product.category, rating: product.rating, reviews: product.reviews,
                         badge: product.badge, desc: product.desc });
         showToast('<i class="bi bi-heart-fill me-2"></i>' + product.name + ' nos favoritos!');
