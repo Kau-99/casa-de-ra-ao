@@ -1,11 +1,12 @@
-/* ============================================================
-   HELVINHO RAÇÕES — SCRIPT PRINCIPAL
-   Módulos: Router · Produtos · Carrinho · Wishlist ·
-            Busca · Quick View · Checkout · Newsletter ·
-            Stats Counter · Cursor · Swiper · AOS
-============================================================ */
+/**
+ * Helvinho Rações — aplicação SPA client-side
+ *
+ * Roteamento via hash (#home, #shop, #about, #contact, #wishlist).
+ * Estado do carrinho e da wishlist persistido em localStorage.
+ * Checkout disparado por deep link wa.me — sem backend necessário.
+ */
 
-/* ---- CATÁLOGO DE PRODUTOS ---- */
+/* Em produção, trocar por chamada de API ou CMS */
 const products = [
     {
         id: 1, name: "Ração Golden Adulto Cães 15kg", price: 189.90, originalPrice: 229.90, category: "Ração",
@@ -99,26 +100,24 @@ const products = [
     }
 ];
 
-/* ---- ESTADO DA APLICAÇÃO ---- */
+/* Estado global — carrinho e wishlist sobrevivem a reloads via localStorage */
 let cart     = JSON.parse(localStorage.getItem('helvinhoCart'))     || [];
 let wishlist = JSON.parse(localStorage.getItem('helvinhoWishlist')) || [];
 let currentFilter   = 'all';
-let _routerBusy     = false; // guard para evitar hashchange recursivo
+let _routerBusy     = false; // impede que window.location.hash = x dispare o hashchange listener em loop
 
-/* ============================================================
-   BOOTSTRAP: helpers seguros
-============================================================ */
+/* getOrCreateInstance: garante no máximo uma instância Bootstrap por elemento,
+   independente de quantas vezes a função for chamada */
 function bsModal(id)    { return bootstrap.Modal.getOrCreateInstance(document.getElementById(id)); }
 function bsOffcanvas(id){ const el = document.getElementById(id); return el ? bootstrap.Offcanvas.getOrCreateInstance(el) : null; }
 
-/* ============================================================
-   DOM CACHE — evita querySelectorAll repetido no router
-============================================================ */
+/* O router é chamado em toda navegação; cachear as NodeLists evita
+   querySelectorAll no DOM a cada troca de view */
 let _domCache = null;
 function dom() {
     if (!_domCache) {
         _domCache = {
-            views:   Array.from(document.querySelectorAll('.view-section')),
+            views:    Array.from(document.querySelectorAll('.view-section')),
             navLinks: Array.from(document.querySelectorAll('.nav-link[data-target]')),
             glassNav: document.querySelector('.glass-nav')
         };
@@ -126,9 +125,6 @@ function dom() {
     return _domCache;
 }
 
-/* ============================================================
-   INICIALIZAÇÃO
-============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
     initLoader();
     initAOS();
@@ -145,7 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const hash = window.location.hash.replace('#', '');
     router(hash && document.getElementById('view-' + hash) ? hash : 'home');
 
-    // Scroll passivo + RAF throttle — nunca bloqueia o thread principal
+    /* { passive: true } libera o browser para fazer scroll sem esperar o callback;
+       o flag _scrollTicking evita múltiplas chamadas por frame via RAF throttle */
     let _scrollTicking = false;
     window.addEventListener('scroll', () => {
         if (!_scrollTicking) {
@@ -161,11 +158,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-/* ---- LOADER ---- */
 function initLoader() {
     const el = document.getElementById('loader');
     if (!el) return;
-    // 400 ms é suficiente para o JS estar pronto — não há razão para esperar mais
+    /* 400 ms cobre o tempo de parse + primeiro render; qualquer valor maior
+       só adiciona espera sem benefício perceptível para o usuário */
     setTimeout(() => {
         el.style.opacity = '0';
         el.style.pointerEvents = 'none';
@@ -173,13 +170,11 @@ function initLoader() {
     }, 400);
 }
 
-/* ---- AOS ---- */
 function initAOS() {
     if (!window.AOS) return;
     AOS.init({ once: true, offset: 60, duration: 700, easing: 'ease-out-cubic', throttleDelay: 99 });
 }
 
-/* ---- SWIPER ---- */
 function initSwiper() {
     if (!window.Swiper) return;
     new Swiper('.testimonials-swiper', {
@@ -196,11 +191,12 @@ function initSwiper() {
     });
 }
 
-/* ---- CUSTOM CURSOR (somente desktop) ---- */
 function initCustomCursor() {
     const cursor   = document.getElementById('custom-cursor');
     const follower = document.getElementById('custom-cursor-follower');
     if (!cursor || !follower) return;
+
+    /* pointer: coarse identifica telas touch; cursor customizado não faz sentido nelas */
     if (window.matchMedia('(pointer: coarse)').matches) {
         cursor.style.display = follower.style.display = 'none';
         return;
@@ -212,6 +208,8 @@ function initCustomCursor() {
         mx = e.clientX; my = e.clientY;
         cursor.style.left = mx + 'px';
         cursor.style.top  = my + 'px';
+        /* Só agenda RAF quando há movimento real — o loop para sozinho quando
+           o follower converge, em vez de rodar indefinidamente */
         if (!dirty) { dirty = true; rafId = requestAnimationFrame(tick); }
     }, { passive: true });
 
@@ -220,7 +218,6 @@ function initCustomCursor() {
         fx += dx * 0.1; fy += dy * 0.1;
         follower.style.left = fx + 'px';
         follower.style.top  = fy + 'px';
-        // Para o loop quando o follower converge — economiza CPU quando o mouse está parado
         if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
             rafId = requestAnimationFrame(tick);
         } else {
@@ -228,12 +225,14 @@ function initCustomCursor() {
         }
     }
 
-    // Pausa o cursor quando a aba fica em segundo plano
+    /* Cancela o RAF quando a aba vai para segundo plano — sem isso o loop
+       continua consumindo CPU sem nenhum pixel ser renderizado */
     document.addEventListener('visibilitychange', () => {
         if (document.hidden && rafId) { cancelAnimationFrame(rafId); rafId = null; dirty = false; }
     });
 
-    // Event delegation: cobre elementos futuros (cards renderizados dinamicamente)
+    /* Delegation em vez de listeners por elemento: cobre automaticamente cards
+       e botões renderizados dinamicamente após o DOMContentLoaded */
     document.addEventListener('mouseover', e => {
         if (e.target.closest('a, button, [role="button"], .cursor-pointer')) {
             document.body.classList.add('cursor-hover');
@@ -246,21 +245,18 @@ function initCustomCursor() {
     });
 }
 
-/* ---- NAVBAR SCROLL ---- */
 function initNavScroll() { handleNavScroll(); }
 function handleNavScroll() {
     const { glassNav } = dom();
     if (glassNav) glassNav.classList.toggle('nav-scrolled', window.scrollY > 10);
 }
 
-/* ============================================================
-   ROUTER (SPA)
-   Fluxo correto para CSS transition:
-   1. Esconde todas as sections (d-none)
-   2. Remove d-none da target → display:block, opacity:0 (sem active)
-   3. Força reflow (offsetWidth) — browser vê o estado opacity:0
-   4. Adiciona .active no próximo frame → CSS transita 0→1
-============================================================ */
+/* Transição SPA: o truque está na sequência precisa de operações.
+   Remove d-none → o elemento entra no layout com opacity:0 (ainda sem .active).
+   void offsetWidth força o browser a calcular o layout agora — sem isso ele
+   agrupa a remoção do d-none e a adição do .active no mesmo frame e a
+   transição CSS nunca é percebida (começa e termina em opacity:1).
+   O RAF garante que .active só é adicionado no frame seguinte. */
 function router(viewId) {
     _routerBusy = true;
     window.location.hash = viewId;
@@ -268,48 +264,43 @@ function router(viewId) {
 
     const { views, navLinks } = dom();
 
-    // Atualiza links ativos — usa cache em vez de querySelectorAll
     navLinks.forEach(link => {
         const active = link.getAttribute('data-target') === viewId;
         link.classList.toggle('active', active);
         active ? link.setAttribute('aria-current', 'page') : link.removeAttribute('aria-current');
     });
 
-    // Esconde todas as views — usa cache
     views.forEach(s => { s.classList.remove('active'); s.classList.add('d-none'); });
 
     const target = document.getElementById('view-' + viewId);
     if (target) {
-        target.classList.remove('d-none');   // display:block, opacity:0
-        void target.offsetWidth;             // força reflow
+        target.classList.remove('d-none');
+        void target.offsetWidth; // força reflow — crítico para a transição funcionar
         requestAnimationFrame(() => {
-            target.classList.add('active');  // opacity:0→1
-            if (window.AOS) AOS.refresh();   // chama AOS no mesmo frame, sem setTimeout
+            target.classList.add('active');
+            if (window.AOS) AOS.refresh(); // no mesmo frame para não atrasar animações
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // Fecha menu mobile
     const nav = document.getElementById('navbarNav');
     if (nav && nav.classList.contains('show')) {
         const c = bootstrap.Collapse.getInstance(nav);
         if (c) c.hide();
     }
 
-    // Ações específicas por view
     if (viewId === 'wishlist') renderWishlistPage();
     if (viewId === 'about')    initStatCounters();
     if (viewId === 'contact')  updateLojaStatus();
 }
 
-/* ============================================================
-   PRODUTOS — RENDERIZAÇÃO
-============================================================ */
+/* -----------------------------------------------------------
+   Renderização de produtos
+----------------------------------------------------------- */
 function renderProducts(list) {
     const grid = document.getElementById('products-grid');
     if (!grid) return;
 
-    // Contador de resultados
     const count = document.getElementById('products-count');
     if (count) {
         count.textContent = list.length === products.length
@@ -338,7 +329,8 @@ function buildProductCard(p, idx) {
     const stars = buildStars(p.rating);
     const delay = Math.min(idx * 60, 300);
 
-    // Badge: se tem desconto, mostra a % salva; senão usa o badge textual
+    /* Desconto tem prioridade sobre badge textual — se existe originalPrice,
+       o percentual calculado é mais informativo do que um rótulo genérico */
     let badgeHtml = '';
     if (p.originalPrice) {
         const pct = Math.round((1 - p.price / p.originalPrice) * 100);
@@ -352,7 +344,6 @@ function buildProductCard(p, idx) {
                     '<span class="badge ' + cls + ' small px-2 py-1 rounded-pill">' + p.badge + '</span></div>';
     }
 
-    // Bloco de preço: mostra "de X por Y" se tiver originalPrice
     const priceHtml = p.originalPrice
         ? '<div class="card-price-group">' +
               '<span class="card-price-original" aria-label="Preço anterior">' + formatMoney(p.originalPrice) + '</span>' +
@@ -414,10 +405,10 @@ function buildStars(rating) {
 function renderFeaturedProducts() {
     const grid = document.getElementById('featured-grid');
     if (!grid) return;
-    // Pick one product from each category for visual variety
+    /* Um produto de cada categoria garante diversidade visual no home —
+       slice(0,4) mostraria apenas rações, que são os primeiros do array */
     const categories = ['Ração', 'Acessórios', 'Higiene', 'Medicamentos'];
     const featured = categories.map(cat => products.find(p => p.category === cat)).filter(Boolean);
-    // Pad with remaining products if any category is empty
     if (featured.length < 4) {
         products.forEach(p => { if (featured.length < 4 && !featured.includes(p)) featured.push(p); });
     }
@@ -425,13 +416,14 @@ function renderFeaturedProducts() {
     if (window.AOS) AOS.refresh();
 }
 
-/* ============================================================
-   FILTROS
-============================================================ */
+/* -----------------------------------------------------------
+   Filtros e busca
+----------------------------------------------------------- */
 function filterProducts(category) {
     currentFilter = category;
 
-    // Atualiza estado visual dos botões (via data-filter — sem depender de textContent)
+    /* Comparo data-filter em vez de textContent para não depender de espaços
+       ou caracteres Unicode que variam entre navegadores (ç, ã, etc.) */
     document.querySelectorAll('.btn-filter').forEach(btn => {
         const active = btn.getAttribute('data-filter') === category;
         btn.classList.toggle('active', active);
@@ -444,22 +436,24 @@ function filterProducts(category) {
 
 function filterAndGo(category) {
     router('shop');
-    // Limpa busca ao trocar categoria
     const searchInput = document.getElementById('search-input');
     if (searchInput) searchInput.value = '';
     const suggestions = document.getElementById('search-suggestions');
     if (suggestions) suggestions.classList.remove('visible');
-    // Aguarda a view estar visível antes de aplicar o filtro
+    /* 460 ms cobre a transição de entrada da view (400 ms) + margem de segurança;
+       aplicar o filtro antes causaria AOS.refresh() sem elementos visíveis */
     setTimeout(() => filterProducts(category), 460);
 }
 
-/* ============================================================
-   BUSCA COM SUGESTÕES
-============================================================ */
+/* -----------------------------------------------------------
+   Busca com autocomplete
+----------------------------------------------------------- */
 let _searchTimer;
 
 function searchProducts() {
     clearTimeout(_searchTimer);
+    /* 200 ms de debounce: responde rápido o suficiente para parecer instantâneo,
+       mas evita filtrar a cada tecla em digitações contínuas */
     _searchTimer = setTimeout(_doSearch, 200);
 }
 
@@ -469,7 +463,6 @@ function _doSearch() {
     const term = input.value.toLowerCase().trim();
     const suggestions = document.getElementById('search-suggestions');
 
-    // Sugestões autocomplete
     if (suggestions) {
         if (term.length >= 2) {
             const hits = products.filter(p => p.name.toLowerCase().includes(term)).slice(0, 5);
@@ -497,7 +490,6 @@ function _doSearch() {
         }
     }
 
-    // Filtra o grid de produtos
     const list = term
         ? products.filter(p =>
             p.name.toLowerCase().includes(term) ||
@@ -526,14 +518,14 @@ function selectSuggestion(id) {
 }
 
 function initSearchListeners() {
-    // Fecha sugestões ao clicar fora da área de busca
+    /* Ambos os listeners são globais — mais simples e mais confiável do que
+       blur no input, que dispara antes do click na sugestão e esconde o dropdown */
     document.addEventListener('click', e => {
         if (!e.target.closest('.search-wrapper')) {
             const s = document.getElementById('search-suggestions');
             if (s) s.classList.remove('visible');
         }
     });
-    // Fecha sugestões com Escape
     document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             const s = document.getElementById('search-suggestions');
@@ -542,9 +534,9 @@ function initSearchListeners() {
     });
 }
 
-/* ============================================================
-   QUICK VIEW
-============================================================ */
+/* -----------------------------------------------------------
+   Quick View
+----------------------------------------------------------- */
 function openQuickView(id) {
     const p = products.find(pr => pr.id === id);
     if (!p) return;
@@ -578,14 +570,12 @@ function openQuickView(id) {
     const desc = document.getElementById('qv-desc');
     if (desc) desc.textContent = p.desc || 'Produto premium selecionado para o bem-estar do seu pet.';
 
-    // Botão "Adicionar"
     const addBtn = document.getElementById('qv-btn');
     if (addBtn) {
         addBtn.innerHTML = '<i class="bi bi-bag-plus me-2"></i>Adicionar à Sacola';
         addBtn.onclick = () => addToCart(p.id);
     }
 
-    // Botão wishlist dentro do modal
     const wishBtn = document.getElementById('qv-wish-btn');
     if (wishBtn) {
         const inWL = wishlist.some(w => w.id === p.id);
@@ -601,13 +591,12 @@ function openQuickView(id) {
         };
     }
 
-    // getOrCreateInstance evita múltiplas instâncias no mesmo elemento
     bsModal('quickViewModal').show();
 }
 
-/* ============================================================
-   CARRINHO
-============================================================ */
+/* -----------------------------------------------------------
+   Carrinho
+----------------------------------------------------------- */
 function addToCart(id) {
     const product = products.find(p => p.id === id);
     if (!product) return;
@@ -616,7 +605,8 @@ function addToCart(id) {
     if (existing) {
         existing.qty++;
     } else {
-        // Salva apenas os campos necessários para reduzir tamanho no localStorage
+        /* Persisto apenas os campos usados na UI do carrinho — desc, rating e
+           originalPrice não são necessários aqui e aumentariam o payload no localStorage */
         cart.push({
             id:    product.id,
             name:  product.name,
@@ -630,14 +620,12 @@ function addToCart(id) {
     updateCartUI();
     showToast('<i class="bi bi-bag-check-fill me-2"></i>' + product.name + ' adicionado!');
 
-    // Fecha o quick view se estiver aberto
     const qvEl = document.getElementById('quickViewModal');
     if (qvEl) {
         const qvInstance = bootstrap.Modal.getInstance(qvEl);
         if (qvInstance) qvInstance.hide();
     }
 
-    // Micro-animação no ícone do carrinho
     const cartBtn = document.querySelector('[data-bs-target="#cartOffcanvas"]');
     if (cartBtn) {
         cartBtn.style.transform = 'scale(1.35)';
@@ -727,12 +715,13 @@ function updateCartUI() {
     subtotalEl.textContent = formatMoney(total);
 }
 
-// Fecha o offcanvas e navega — com null-check
+/* Navega para outra view fechando o offcanvas primeiro.
+   O evento hidden.bs.offcanvas garante que a navegação só acontece
+   depois que a animação de fechamento do painel terminou */
 function closeCartAndGo(viewId) {
     const oc = bsOffcanvas('cartOffcanvas');
     if (oc) {
         const el = document.getElementById('cartOffcanvas');
-        // Aguarda o offcanvas fechar antes de navegar
         el.addEventListener('hidden.bs.offcanvas', function handler() {
             el.removeEventListener('hidden.bs.offcanvas', handler);
             router(viewId);
@@ -743,9 +732,9 @@ function closeCartAndGo(viewId) {
     }
 }
 
-/* ============================================================
-   CHECKOUT VIA WHATSAPP
-============================================================ */
+/* -----------------------------------------------------------
+   Checkout via WhatsApp
+----------------------------------------------------------- */
 function checkoutWhatsApp() {
     if (cart.length === 0) {
         showToast('<i class="bi bi-exclamation-circle me-2"></i>Adicione itens à sacola primeiro!');
@@ -755,7 +744,8 @@ function checkoutWhatsApp() {
     const oc = bsOffcanvas('cartOffcanvas');
     if (oc) {
         const el = document.getElementById('cartOffcanvas');
-        // Abre o modal SOMENTE após o offcanvas fechar completamente
+        /* Aguardo hidden.bs.offcanvas antes de abrir o modal de checkout —
+           Bootstrap não empilha Offcanvas + Modal sem conflito de z-index */
         el.addEventListener('hidden.bs.offcanvas', function handler() {
             el.removeEventListener('hidden.bs.offcanvas', handler);
             bsModal('checkoutModal').show();
@@ -793,7 +783,8 @@ function finalizeOrder() {
 
     window.open('https://wa.me/5511999999999?text=' + encodeURIComponent(msg), '_blank');
 
-    // Limpa o carrinho após pedido enviado ao WhatsApp
+    /* Limpa o carrinho imediatamente após abrir o WhatsApp — o pedido já
+       está na conversa e manter itens causaria confusão num próximo acesso */
     cart = [];
     saveCart();
     updateCartUI();
@@ -804,7 +795,7 @@ function finalizeOrder() {
     showToast('<i class="bi bi-check-circle-fill me-2"></i>Pedido enviado! Aguarde o contato da loja.');
 }
 
-/* ---- PEDIDO DIRETO PELO WHATSAPP (sem passar pelo carrinho) ---- */
+/* Atalho para compra avulsa — abre WhatsApp direto sem passar pelo carrinho */
 function orderDirectWhatsApp(id) {
     const p = products.find(pr => pr.id === id);
     if (!p) return;
@@ -823,9 +814,9 @@ function orderDirectWhatsApp(id) {
 }
 
 
-/* ============================================================
-   WISHLIST / FAVORITOS
-============================================================ */
+/* -----------------------------------------------------------
+   Wishlist
+----------------------------------------------------------- */
 function toggleWishlist(id, btnEl) {
     const product = products.find(p => p.id === id);
     if (!product) return;
@@ -845,7 +836,8 @@ function toggleWishlist(id, btnEl) {
     localStorage.setItem('helvinhoWishlist', JSON.stringify(wishlist));
     updateWishlistBadge();
 
-    // Atualiza o botão clicado sem re-renderizar o grid inteiro
+    /* Atualiza só o botão clicado — re-renderizar o grid inteiro perderia
+       a posição de scroll e piscaria visualmente */
     if (btnEl) {
         const nowIn = wishlist.some(w => w.id === id);
         btnEl.classList.toggle('wishlisted', nowIn);
@@ -880,9 +872,9 @@ function renderWishlistPage() {
     if (window.AOS) AOS.refresh();
 }
 
-/* ============================================================
-   NEWSLETTER
-============================================================ */
+/* -----------------------------------------------------------
+   Newsletter
+----------------------------------------------------------- */
 function handleNewsletter(event) {
     event.preventDefault();
     const input = event.target.querySelector('input[type="email"]');
@@ -897,23 +889,24 @@ function handleNewsletter(event) {
     event.target.reset();
 }
 
-/* ============================================================
-   FORMULÁRIO DE CONTATO
-============================================================ */
+/* -----------------------------------------------------------
+   Formulário de contato
+----------------------------------------------------------- */
 function handleContactForm(event) {
     event.preventDefault();
     showToast('<i class="bi bi-check-circle-fill me-2"></i>Mensagem enviada! Retornaremos em breve.');
     event.target.reset();
 }
 
-/* ============================================================
-   CONTADOR ANIMADO (página Sobre)
-============================================================ */
+/* -----------------------------------------------------------
+   Contador animado — página Sobre
+----------------------------------------------------------- */
 function initStatCounters() {
     const numbers = document.querySelectorAll('.stat-number[data-target]');
     if (!numbers.length) return;
 
-    // Reseta para 0 a cada visita para re-animar
+    /* Reinicio em zero a cada entrada na view — quem volta à página Sobre
+       espera ver a animação de novo, não o número já estático */
     numbers.forEach(el => { el.textContent = '0'; });
 
     const observer = new IntersectionObserver(entries => {
@@ -943,20 +936,20 @@ function initStatCounters() {
     numbers.forEach(el => observer.observe(el));
 }
 
-/* ============================================================
-   STATUS DA LOJA (Aberto / Fechado em tempo real)
-============================================================ */
+/* -----------------------------------------------------------
+   Status da loja em tempo real
+----------------------------------------------------------- */
 function updateLojaStatus() {
     const el = document.getElementById('loja-status');
     if (!el) return;
 
     const now    = new Date();
-    const day    = now.getDay();  // 0=Dom, 1=Seg … 6=Sáb
+    const day    = now.getDay(); // 0 = domingo … 6 = sábado
     const hour   = now.getHours();
     const minute = now.getMinutes();
-    const time   = hour + minute / 60;
+    const time   = hour + minute / 60; // hora decimal facilita comparação de intervalo
 
-    // Horários: Seg–Sex 8–20, Sáb 9–18, Dom 10–16
+    /* Índice alinha com getDay(): schedule[0] = domingo, schedule[6] = sábado */
     const schedule = [
         { open: 10, close: 16 }, // Dom
         { open: 8,  close: 20 }, // Seg
@@ -978,7 +971,6 @@ function updateLojaStatus() {
         el.textContent = '🟢 Aberto agora · Fecha em ' + fechaEm;
         el.className = 'hours-status aberto';
     } else {
-        // Calcula quando abre novamente
         let nextDay  = (day + 1) % 7;
         let nextOpen = schedule[nextDay].open;
         const diasSemana = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -987,9 +979,9 @@ function updateLojaStatus() {
     }
 }
 
-/* ============================================================
-   UTILITÁRIOS
-============================================================ */
+/* -----------------------------------------------------------
+   Utilitários
+----------------------------------------------------------- */
 function showToast(htmlMsg) {
     const toastEl = document.getElementById('liveToast');
     if (!toastEl) return;
@@ -1002,11 +994,11 @@ function formatMoney(value) {
     return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// Escapa atributos HTML para evitar quebra em nomes com aspas
+/* Funções de escape usadas em toda string que vai para innerHTML —
+   sem isso, nomes de produtos com aspas ou < quebram o HTML gerado (XSS) */
 function escAttr(str) {
     return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-// Escapa conteúdo HTML
 function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
