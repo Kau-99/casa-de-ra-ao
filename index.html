@@ -37,6 +37,9 @@
 </head>
 <body>
 
+    <!-- Skip link — permite usuários de teclado/leitores de tela saltarem direto ao conteúdo -->
+    <a href="#app-content" class="skip-link">Ir para o conteúdo principal</a>
+
     <!-- Cursor Customizado -->
     <div id="custom-cursor"></div>
     <div id="custom-cursor-follower"></div>
@@ -278,8 +281,9 @@
                         <span class="section-badge">Depoimentos</span>
                         <h2 id="testimonials-heading" class="section-title">O que nossos clientes dizem</h2>
                     </div>
-                    <div class="swiper testimonials-swiper" data-aos="fade-up" data-aos-delay="100">
-                        <div class="swiper-wrapper">
+                    <div class="swiper testimonials-swiper" data-aos="fade-up" data-aos-delay="100"
+                         aria-label="Depoimentos de clientes" aria-roledescription="carrossel">
+                        <div class="swiper-wrapper" aria-live="polite">
                             <div class="swiper-slide">
                                 <div class="testimonial-card">
                                     <div class="testimonial-stars" aria-label="5 de 5 estrelas">
@@ -390,7 +394,7 @@
                     </nav>
                     <div class="row align-items-center g-3 mb-4">
                         <div class="col-md-5">
-                            <h1 class="shop-title fw-bold mb-0">Loja Completa</h1>
+                            <h2 class="shop-title fw-bold mb-0">Loja Completa</h2>
                             <p class="text-muted small mb-0" id="products-count">Todos os produtos</p>
                         </div>
                         <div class="col-md-7">
@@ -441,7 +445,7 @@
                 <div class="d-flex align-items-center gap-3 mb-5">
                     <div class="section-icon"><i class="bi bi-heart-fill text-danger"></i></div>
                     <div>
-                        <h1 class="fw-bold mb-0">Meus Favoritos</h1>
+                        <h2 class="fw-bold mb-0">Meus Favoritos</h2>
                         <p class="text-muted mb-0">Produtos que você salvou</p>
                     </div>
                 </div>
@@ -465,7 +469,7 @@
                     </nav>
                     <div class="text-white" data-aos="fade-up">
                         <span class="about-hero-badge">Desde 2018</span>
-                        <h1 class="about-hero-title">Amor pelos animais<br>desde o primeiro dia.</h1>
+                        <h2 class="about-hero-title">Amor pelos animais<br>desde o primeiro dia.</h2>
                         <p class="about-hero-sub">Somos a Helvinho Rações — loja de bairro, atendimento de família.</p>
                     </div>
                 </div>
@@ -694,7 +698,7 @@
                     </nav>
                     <div class="text-white" data-aos="fade-up">
                         <span class="about-hero-badge">Atendemos de segunda a domingo</span>
-                        <h1 class="about-hero-title">Fale com a gente!</h1>
+                        <h2 class="about-hero-title">Fale com a gente!</h2>
                         <p class="about-hero-sub">Tire dúvidas, faça pedidos ou venha nos visitar — estamos sempre aqui.</p>
                     </div>
                 </div>
@@ -1088,6 +1092,26 @@
                     <button type="button" class="btn-hero-primary w-100" onclick="finalizeOrder()">
                         <i class="bi bi-whatsapp me-2" aria-hidden="true"></i>Confirmar via WhatsApp
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação — reutilizado por qualquer ação destrutiva no app -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content modal-premium border-0 p-2">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold" id="confirmModalLabel">
+                        <i class="bi bi-exclamation-circle text-danger me-2" aria-hidden="true"></i>Confirmar ação
+                    </h6>
+                </div>
+                <div class="modal-body py-2">
+                    <p id="confirm-message" class="mb-0 text-center text-muted">Tem certeza?</p>
+                </div>
+                <div class="modal-footer border-0 pt-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary flex-fill" id="confirm-no">Cancelar</button>
+                    <button type="button" class="btn btn-danger flex-fill" id="confirm-yes">Remover</button>
                 </div>
             </div>
         </div>

@@ -279,6 +279,17 @@ function router(viewId) {
         requestAnimationFrame(() => {
             target.classList.add('active');
             if (window.AOS) AOS.refresh(); // no mesmo frame para não atrasar animações
+            /* Skeleton cobre a transição da view — visível o tempo suficiente para a API responder.
+               Com dados locais, o setTimeout simula latência de rede (será substituído por fetch). */
+            if (viewId === 'shop') {
+                showSkeletonCards(8);
+                setTimeout(() => {
+                    const list = currentFilter === 'all'
+                        ? products
+                        : products.filter(p => p.category === currentFilter);
+                    renderProducts(list);
+                }, 300);
+            }
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -633,7 +644,13 @@ function addToCart(id) {
     }
 }
 
-function removeFromCart(id) {
+/* skipConfirm=true quando a remoção é consequência de qty chegar a zero —
+   o usuário já expressou intenção ao clicar em "−" repetidamente */
+async function removeFromCart(id, skipConfirm = false) {
+    if (!skipConfirm) {
+        const ok = await showConfirm('Remover este produto da sacola?');
+        if (!ok) return;
+    }
     cart = cart.filter(item => item.id !== id);
     saveCart();
     updateCartUI();
@@ -645,7 +662,7 @@ function updateQty(id, delta) {
     if (!item) return;
     item.qty += delta;
     if (item.qty <= 0) {
-        removeFromCart(id);
+        removeFromCart(id, true); // remoção implícita: qty chegou a zero, sem diálogo de confirmação
     } else {
         saveCart();
         updateCartUI();
@@ -987,11 +1004,62 @@ function showToast(htmlMsg) {
     if (!toastEl) return;
     const body = toastEl.querySelector('.toast-body');
     if (body) body.innerHTML = htmlMsg;
-    bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3500 }).show();
+    /* Duração escala com o comprimento do texto — mensagens curtas somem rápido,
+       mensagens longas ficam visíveis tempo suficiente para serem lidas */
+    const len   = htmlMsg.replace(/<[^>]+>/g, '').length;
+    const delay = Math.max(2000, Math.min(8000, 1500 + len * 15));
+    bootstrap.Toast.getOrCreateInstance(toastEl, { delay }).show();
 }
 
 function formatMoney(value) {
     return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/* Preenche o grid com n cards placeholder enquanto os dados reais carregam.
+   Cada card replica a estrutura de .card-premium para não causar reflow ao substituir. */
+function showSkeletonCards(n) {
+    const grid = document.getElementById('products-grid');
+    if (!grid) return;
+    const card =
+        '<div class="col-6 col-md-4 col-lg-3">' +
+            '<div class="skeleton-card">' +
+                '<div class="skeleton-img"></div>' +
+                '<div class="skeleton-body">' +
+                    '<div class="skeleton-line skeleton-line-title"></div>' +
+                    '<div class="skeleton-line skeleton-line-sub"></div>' +
+                    '<div class="skeleton-line skeleton-line-price"></div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    grid.innerHTML = Array(n).fill(card).join('');
+}
+
+/* Promise-based confirm — retorna true/false quando o usuário clica em Remover/Cancelar.
+   Usar await neste ponto mantém o fluxo linear sem callbacks aninhados. */
+function showConfirm(message) {
+    return new Promise(resolve => {
+        const modal  = document.getElementById('confirmModal');
+        const msgEl  = document.getElementById('confirm-message');
+        const btnYes = document.getElementById('confirm-yes');
+        const btnNo  = document.getElementById('confirm-no');
+        /* Fallback defensivo: se o modal não existir no DOM (ex.: testes unitários), confirma automaticamente */
+        if (!modal || !btnYes || !btnNo) { resolve(true); return; }
+        if (msgEl) msgEl.textContent = message;
+
+        const bs = bootstrap.Modal.getOrCreateInstance(modal);
+
+        function cleanup() {
+            btnYes.removeEventListener('click', onYes);
+            btnNo.removeEventListener('click', onNo);
+            bs.hide();
+        }
+        function onYes() { cleanup(); resolve(true); }
+        function onNo()  { cleanup(); resolve(false); }
+
+        btnYes.addEventListener('click', onYes, { once: true });
+        btnNo.addEventListener('click', onNo,  { once: true });
+        bs.show();
+    });
 }
 
 /* Funções de escape usadas em toda string que vai para innerHTML —
