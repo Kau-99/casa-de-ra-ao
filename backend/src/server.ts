@@ -36,7 +36,7 @@ const isDev = (process.env.NODE_ENV ?? 'development') === 'development';
 app.use(
   cors({
     origin: isDev
-      ? (origin, cb) => cb(null, true)   // qualquer origem em dev
+      ? (_origin: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => cb(null, true)
       : process.env.CORS_ORIGIN,
     credentials: true,
   })

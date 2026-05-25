@@ -40,7 +40,7 @@ export const productQuerySchema = Joi.object({
   search:   Joi.string().trim().max(80).optional(),
   active:   Joi.boolean().optional(),
   page:     Joi.number().integer().min(1).default(1),
-  limit:    Joi.number().integer().min(1).max(50).default(20),
+  limit:    Joi.number().integer().min(1).max(100).default(20),
   sort:     Joi.string().valid('price_asc', 'price_desc', 'rating', 'newest').default('newest'),
 });
 
