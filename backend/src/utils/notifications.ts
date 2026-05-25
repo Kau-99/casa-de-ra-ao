@@ -45,8 +45,10 @@ export async function sendOrderWhatsApp(order: IOrder): Promise<void> {
     return;
   }
 
-  /* Importação dinâmica do SDK Twilio para não forçar dependência em dev */
-  const twilio = await import('twilio').then((m) => m.default);
+  /* Importação dinâmica do SDK Twilio para não forçar dependência em dev.
+     ts-ignore: twilio é opcional — não está em node_modules em dev sem credenciais */
+  // @ts-ignore
+  const twilio = await import('twilio').then((m: any) => m.default);
   const client = twilio(sid, token);
 
   const storePhone = process.env.STORE_WHATSAPP ?? '+5511999999999';

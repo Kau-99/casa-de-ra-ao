@@ -39,6 +39,7 @@ router.post('/login', loginLimiter, validateBody(loginSchema), async (req: Reque
       return next(new AppError('Credenciais inválidas.', 401));
     }
 
+    if (!admin.password) return next(new AppError('Credenciais inválidas.', 401));
     const valid = await bcrypt.compare(password, admin.password);
     if (!valid) return next(new AppError('Credenciais inválidas.', 401));
 

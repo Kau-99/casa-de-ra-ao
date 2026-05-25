@@ -13,7 +13,7 @@ export class AppError extends Error {
 }
 
 /* 404 para rotas não encontradas */
-export function notFound(req: Request, res: Response, next: NextFunction): void {
+export function notFound(req: Request, _res: Response, next: NextFunction): void {
   next(new AppError(`Rota não encontrada: ${req.method} ${req.originalUrl}`, 404));
 }
 

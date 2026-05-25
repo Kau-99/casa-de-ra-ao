@@ -6,8 +6,13 @@
  * Checkout disparado por deep link wa.me — sem backend necessário.
  */
 
-/* Em produção, trocar por chamada de API ou CMS */
-const products = [
+const API_BASE = 'http://localhost:3000/api';
+
+/* Populado via loadProducts() no DOMContentLoaded — nunca acessar antes da Promise resolver */
+let products = [];
+
+/* Dados de fallback usados apenas se a API estiver offline */
+const PRODUCTS_FALLBACK = [
     {
         id: 1, name: "Ração Golden Adulto Cães 15kg", price: 189.90, originalPrice: 229.90, category: "Ração",
         rating: 4.9, reviews: 312, badge: "Oferta",
@@ -100,6 +105,33 @@ const products = [
     }
 ];
 
+/* Busca todos os produtos da API e popula o array global.
+   Mapeia _id → id para manter compatibilidade com cart/wishlist que usam p.id. */
+async function loadProducts() {
+    try {
+        const res = await fetch(API_BASE + '/products?limit=100');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        products = data.items.map(p => ({
+            id:            p._id,
+            name:          p.name,
+            price:         p.price,
+            originalPrice: p.originalPrice ?? null,
+            category:      p.category,
+            rating:        p.rating,
+            reviews:       p.reviews,
+            badge:         p.badge ?? null,
+            img:           p.img,
+            desc:          p.desc,
+            stock:         p.stock,
+        }));
+    } catch (err) {
+        /* API offline: usa dados locais para não quebrar a experiência */
+        console.warn('[API] Falha ao carregar produtos — usando dados locais.', err);
+        products = PRODUCTS_FALLBACK;
+    }
+}
+
 /* Estado global — carrinho e wishlist sobrevivem a reloads via localStorage */
 let cart     = JSON.parse(localStorage.getItem('helvinhoCart'))     || [];
 let wishlist = JSON.parse(localStorage.getItem('helvinhoWishlist')) || [];
@@ -133,13 +165,17 @@ document.addEventListener('DOMContentLoaded', () => {
     initNavScroll();
     initSearchListeners();
 
-    renderProducts(products);
-    renderFeaturedProducts();
     updateCartUI();
     updateWishlistBadge();
 
     const hash = window.location.hash.replace('#', '');
     router(hash && document.getElementById('view-' + hash) ? hash : 'home');
+
+    /* Carrega produtos da API e renderiza — skeletons já foram mostrados pelo router */
+    loadProducts().then(() => {
+        renderProducts(products);
+        renderFeaturedProducts();
+    });
 
     /* { passive: true } libera o browser para fazer scroll sem esperar o callback;
        o flag _scrollTicking evita múltiplas chamadas por frame via RAF throttle */

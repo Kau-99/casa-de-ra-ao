@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { type SortOrder } from 'mongoose';
 import { Product } from '../models';
 import { requireAuth } from '../middleware/auth';
 import {
@@ -16,7 +17,7 @@ const router = Router();
    Suporta filtros por categoria, busca por texto, paginação e ordenação */
 router.get('/', validateQuery(productQuerySchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { category, search, active, page, limit, sort } = req.query as {
+    const { category, search, active, page, limit, sort } = req.query as unknown as {
       category?: string;
       search?:   string;
       active?:   boolean;
@@ -32,7 +33,7 @@ router.get('/', validateQuery(productQuerySchema), async (req: Request, res: Res
     if (category) filter.category = category;
     if (search)   filter.$text = { $search: search };
 
-    const sortMap: Record<string, Record<string, number>> = {
+    const sortMap: Record<string, Record<string, SortOrder>> = {
       price_asc:  { price: 1 },
       price_desc: { price: -1 },
       rating:     { rating: -1 },

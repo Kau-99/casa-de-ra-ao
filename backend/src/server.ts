@@ -30,9 +30,14 @@ app.use(
   })
 );
 
+/* Em dev, aceita file:// (index.html aberto direto) e localhost em qualquer porta.
+   Em produção, CORS_ORIGIN deve apontar para o domínio real. */
+const isDev = (process.env.NODE_ENV ?? 'development') === 'development';
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: isDev
+      ? (origin, cb) => cb(null, true)   // qualquer origem em dev
+      : process.env.CORS_ORIGIN,
     credentials: true,
   })
 );

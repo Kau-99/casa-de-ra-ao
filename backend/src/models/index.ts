@@ -165,7 +165,7 @@ export const Newsletter = model<INewsletter>('Newsletter', newsletterSchema);
 
 export interface IAdmin extends Document {
   email:     string;
-  password:  string;
+  password?: string;
   role:      AdminRole;
   createdAt: Date;
   updatedAt: Date;
@@ -183,7 +183,7 @@ const adminSchema = new Schema<IAdmin>(
 /* Nunca retorna o hash da senha em queries normais */
 adminSchema.set('toJSON', {
   transform: (_doc, ret) => {
-    delete ret.password;
+    ret.password = undefined;
     return ret;
   },
 });
