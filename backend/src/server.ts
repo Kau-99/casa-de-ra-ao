@@ -30,17 +30,8 @@ app.use(
   })
 );
 
-/* Em dev, aceita file:// (index.html aberto direto) e localhost em qualquer porta.
-   Em produção, CORS_ORIGIN deve apontar para o domínio real. */
-const isDev = (process.env.NODE_ENV ?? 'development') === 'development';
-app.use(
-  cors({
-    origin: isDev
-      ? (_origin: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => cb(null, true)
-      : process.env.CORS_ORIGIN,
-    credentials: true,
-  })
-);
+/* Aceita qualquer origem — segurança garantida pelo JWT nas rotas protegidas */
+app.use(cors({ origin: true, credentials: true }));
 
 /* ---- Parsing ---- */
 app.use(express.json({ limit: '10kb' }));

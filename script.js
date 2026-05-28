@@ -6,7 +6,9 @@
  * Checkout disparado por deep link wa.me — sem backend necessário.
  */
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? 'http://localhost:3000/api'
+    : 'https://helvinho-racoes-api.onrender.com/api';
 
 /* Populado via loadProducts() no DOMContentLoaded — nunca acessar antes da Promise resolver */
 let products = [];

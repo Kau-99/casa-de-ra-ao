@@ -28,8 +28,12 @@ router.get('/', validateQuery(productQuerySchema), async (req: Request, res: Res
 
     const filter: Record<string, unknown> = {};
 
-    /* Só retorna inativos para admins autenticados */
-    filter.active = req.admin ? (active ?? true) : true;
+    /* Admin sem filtro explícito vê todos os produtos; público sempre vê só ativos */
+    if (!req.admin) {
+      filter.active = true;
+    } else if (active !== undefined) {
+      filter.active = active;
+    }
     if (category) filter.category = category;
     if (search)   filter.$text = { $search: search };
 
