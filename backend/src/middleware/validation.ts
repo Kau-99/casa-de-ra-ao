@@ -69,6 +69,11 @@ export const createOrderSchema = Joi.object({
     otherwise: Joi.string().optional().allow(null, ''),
   }),
   payment: Joi.string().valid('Pix', 'Cartão', 'Dinheiro').required(),
+  paymentDetails: Joi.object({
+    cardType:    Joi.string().valid('debito', 'credito').optional().allow(null),
+    cashAmount:  Joi.number().min(0).optional().allow(null),
+    needsChange: Joi.boolean().optional().allow(null),
+  }).optional(),
   notes:   Joi.string().max(300).optional().allow(null, ''),
 });
 

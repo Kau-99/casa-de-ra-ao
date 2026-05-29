@@ -15,12 +15,13 @@ const router = Router();
    Valida estoque, calcula total no servidor e cria o pedido */
 router.post('/', validateBody(createOrderSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { items, customer, deliveryType, address, payment, notes } = req.body as {
+    const { items, customer, deliveryType, address, payment, paymentDetails, notes } = req.body as {
       items: Array<{ productId: string; name: string; price: number; qty: number }>;
       customer: { name: string; phone: string };
       deliveryType: 'delivery' | 'pickup';
       address?: string;
       payment: 'Pix' | 'Cartão' | 'Dinheiro';
+      paymentDetails?: { cardType?: string; cashAmount?: number; needsChange?: boolean };
       notes?: string;
     };
 
@@ -53,10 +54,18 @@ router.post('/', validateBody(createOrderSchema), async (req: Request, res: Resp
       total,
       customer,
       deliveryType,
-      address: address ?? null,
+      address:        address ?? null,
       payment,
-      notes: notes ?? null,
+      paymentDetails: paymentDetails ?? {},
+      notes:          notes ?? null,
     });
+
+    /* Reduz estoque de cada produto — operação atômica com $inc para evitar race conditions */
+    await Promise.all(
+      validatedItems.map(item =>
+        Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.qty } })
+      )
+    );
 
     /* Dispara notificação WhatsApp sem bloquear a resposta */
     sendOrderWhatsApp(order).catch((err: Error) =>

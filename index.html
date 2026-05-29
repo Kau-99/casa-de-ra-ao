@@ -1046,51 +1046,114 @@
             <div class="modal-content modal-premium border-0 p-2">
                 <div class="modal-header border-0 pb-0">
                     <h5 class="modal-title fw-bold" id="checkoutModalLabel">
-                        <i class="bi bi-bag-check-fill text-success me-2" aria-hidden="true"></i>Como deseja receber?
+                        <i class="bi bi-bag-check-fill text-success me-2" aria-hidden="true"></i>Finalizar pedido
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
-                    <ul class="nav nav-pills nav-fill mb-4 gap-2" id="pills-tab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active rounded-3 fw-semibold" id="pills-delivery-tab" data-bs-toggle="pill" data-bs-target="#pills-delivery" type="button" role="tab" aria-selected="true">
-                                <i class="bi bi-truck me-1" aria-hidden="true"></i>Entrega
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link rounded-3 fw-semibold" id="pills-pickup-tab" data-bs-toggle="pill" data-bs-target="#pills-pickup" type="button" role="tab" aria-selected="false">
-                                <i class="bi bi-shop me-1" aria-hidden="true"></i>Retirada
-                            </button>
-                        </li>
-                    </ul>
-                    <div class="tab-content" id="pills-tabContent">
-                        <div class="tab-pane fade show active" id="pills-delivery" role="tabpanel">
-                            <div class="mb-3">
+
+                    <!-- Etapa 1: formulário de entrega + pagamento -->
+                    <div id="checkout-step-form">
+                        <ul class="nav nav-pills nav-fill mb-3 gap-2" id="pills-tab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active rounded-3 fw-semibold" id="pills-delivery-tab" data-bs-toggle="pill" data-bs-target="#pills-delivery" type="button" role="tab" aria-selected="true">
+                                    <i class="bi bi-truck me-1" aria-hidden="true"></i>Entrega
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-3 fw-semibold" id="pills-pickup-tab" data-bs-toggle="pill" data-bs-target="#pills-pickup" type="button" role="tab" aria-selected="false">
+                                    <i class="bi bi-shop me-1" aria-hidden="true"></i>Retirada
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mb-3" id="pills-tabContent">
+                            <div class="tab-pane fade show active" id="pills-delivery" role="tabpanel">
                                 <label for="delivery-address" class="form-label fw-semibold small">Endereço de Entrega</label>
                                 <textarea id="delivery-address" class="form-input-premium" rows="2" placeholder="Rua, número, bairro, CEP..." aria-required="true"></textarea>
                             </div>
-                            <div class="mb-3">
-                                <label for="payment-method" class="form-label fw-semibold small">Forma de Pagamento</label>
-                                <select id="payment-method" class="form-input-premium">
-                                    <option value="Pix">Pix (5% de desconto)</option>
-                                    <option value="Cartão">Cartão de Crédito</option>
-                                    <option value="Dinheiro">Dinheiro</option>
-                                </select>
+                            <div class="tab-pane fade" id="pills-pickup" role="tabpanel">
+                                <div class="pickup-info-card text-center p-3">
+                                    <i class="bi bi-geo-alt-fill text-success fs-2 mb-2" aria-hidden="true"></i>
+                                    <h6 class="fw-bold mb-1">Av. das Patas, 1234</h6>
+                                    <p class="text-muted small mb-0">Jardins, São Paulo — SP</p>
+                                    <p class="text-muted small">Seg–Sex: 8h–20h | Sáb: 9h–18h</p>
+                                </div>
                             </div>
                         </div>
-                        <div class="tab-pane fade" id="pills-pickup" role="tabpanel">
-                            <div class="pickup-info-card text-center p-4">
-                                <i class="bi bi-geo-alt-fill text-success fs-2 mb-3" aria-hidden="true"></i>
-                                <h6 class="fw-bold">Av. das Patas, 1234</h6>
-                                <p class="text-muted small mb-0">Jardins, São Paulo — SP</p>
-                                <p class="text-muted small">Seg–Sex: 8h–20h | Sáb: 9h–18h</p>
+
+                        <!-- Pagamento — compartilhado entre entrega e retirada -->
+                        <label for="payment-method" class="form-label fw-semibold small">Forma de Pagamento</label>
+                        <select id="payment-method" class="form-input-premium mb-3" onchange="onPaymentChange()">
+                            <option value="Pix">PIX</option>
+                            <option value="Cartão">Cartão (débito / crédito)</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                        </select>
+
+                        <!-- PIX — aviso -->
+                        <div id="pix-notice" class="alert alert-success py-2 small d-flex align-items-center gap-2 mb-0">
+                            <i class="bi bi-qr-code-scan fs-5" aria-hidden="true"></i>
+                            <span>Após confirmar, exibiremos o <strong>QR Code PIX</strong> para pagamento.</span>
+                        </div>
+
+                        <!-- Cartão — débito ou crédito -->
+                        <div id="card-type-section" class="d-none">
+                            <p class="form-label fw-semibold small mb-2">Tipo do cartão</p>
+                            <div class="d-flex gap-3 mb-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="cardType" id="card-debito" value="debito" checked>
+                                    <label class="form-check-label small" for="card-debito">
+                                        <i class="bi bi-credit-card me-1"></i>Débito
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="cardType" id="card-credito" value="credito">
+                                    <label class="form-check-label small" for="card-credito">
+                                        <i class="bi bi-credit-card-2-front me-1"></i>Crédito
+                                    </label>
+                                </div>
+                            </div>
+                            <small class="text-muted"><i class="bi bi-info-circle me-1"></i>O entregador levará a maquininha.</small>
+                        </div>
+
+                        <!-- Dinheiro — troco -->
+                        <div id="cash-section" class="d-none">
+                            <label for="cash-amount" class="form-label fw-semibold small">Com quanto você vai pagar?</label>
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" id="cash-amount" class="form-input-premium" placeholder="0,00" min="0" step="0.01" oninput="updateChange()">
+                            </div>
+                            <div id="change-display" class="small d-none">
+                                <i class="bi bi-arrow-return-right me-1 text-success"></i>
+                                Troco para o entregador: <strong id="change-amount" class="text-success"></strong>
+                            </div>
+                            <div id="no-change-display" class="small text-muted d-none">
+                                <i class="bi bi-check-circle me-1 text-success"></i>Sem troco necessário.
                             </div>
                         </div>
                     </div>
+
+                    <!-- Etapa 2: QR Code PIX (exibido após criação do pedido) -->
+                    <div id="pix-screen" class="d-none text-center py-2">
+                        <div class="mb-3">
+                            <i class="bi bi-check-circle-fill text-success" style="font-size:2.5rem"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1">Pedido confirmado!</h6>
+                        <p class="text-muted small mb-3">Escaneie o QR Code ou copie a chave PIX para concluir o pagamento.</p>
+                        <img id="pix-qr-img" src="" alt="QR Code PIX" class="mb-3 rounded-3" style="width:180px;height:180px;border:3px solid #e8f5ee">
+                        <p class="small text-muted mb-1">Código copia e cola:</p>
+                        <div class="input-group input-group-sm mb-3">
+                            <input type="text" id="pix-code" class="form-control form-control-sm font-monospace" readonly style="font-size:.7rem">
+                            <button class="btn btn-outline-success btn-sm" onclick="copyPixCode()" title="Copiar">
+                                <i class="bi bi-copy"></i>
+                            </button>
+                        </div>
+                        <p class="fw-bold text-success mb-0">Total: <span id="pix-total"></span></p>
+                    </div>
+
                 </div>
                 <div class="modal-footer border-0 pt-0">
-                    <button type="button" class="btn-hero-primary w-100" onclick="finalizeOrder()">
-                        <i class="bi bi-whatsapp me-2" aria-hidden="true"></i>Confirmar via WhatsApp
+                    <button type="button" class="btn-hero-primary w-100" id="checkout-btn" onclick="finalizeOrder()">
+                        <i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>Confirmar pedido
                     </button>
                 </div>
             </div>

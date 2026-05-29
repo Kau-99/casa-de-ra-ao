@@ -652,8 +652,9 @@ function openOrderDetail(id) {
             </div>
             <div class="row g-2 text-muted small mb-1">
                 <div class="col-6"><strong>Entrega:</strong> ${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}</div>
-                <div class="col-6"><strong>Pagamento:</strong> ${escHtml(o.payment)}</div>
+                <div class="col-6"><strong>Pagamento:</strong> ${escHtml(o.payment)}${paymentDetailsBadge(o)}</div>
                 ${o.address ? `<div class="col-12"><strong>Endereço:</strong> ${escHtml(o.address)}</div>` : ''}
+                ${paymentDetailsRow(o)}
                 ${o.notes   ? `<div class="col-12"><strong>Obs:</strong> ${escHtml(o.notes)}</div>` : ''}
             </div>
             ${timelineHtml}`;
@@ -798,6 +799,32 @@ function showConfirm(message, subtext) {
         modal.addEventListener('hidden.bs.modal', onHide, { once: true });
         bs.show();
     });
+}
+
+/* ---- Detalhes de pagamento ---- */
+function paymentDetailsBadge(o) {
+    const pd = o.paymentDetails;
+    if (!pd) return '';
+    if (o.payment === 'Cartão' && pd.cardType) {
+        return ` <span class="badge bg-primary-subtle text-primary rounded-pill" style="font-size:.7rem">${pd.cardType === 'credito' ? 'Crédito' : 'Débito'}</span>`;
+    }
+    return '';
+}
+
+function paymentDetailsRow(o) {
+    const pd = o.paymentDetails;
+    if (!pd || !o.payment) return '';
+    if (o.payment === 'Dinheiro' && pd.cashAmount) {
+        const change = Math.max(0, pd.cashAmount - o.total);
+        return `<div class="col-12"><strong>Dinheiro:</strong> tem ${fmtMoney(pd.cashAmount)} — troco ${change > 0 ? fmtMoney(change) : 'não necessário'}</div>`;
+    }
+    if (o.payment === 'Cartão') {
+        return `<div class="col-12"><strong>Maquininha:</strong> o entregador deve levar</div>`;
+    }
+    if (o.payment === 'Pix') {
+        return `<div class="col-12"><strong>PIX:</strong> verificar recebimento antes de entregar</div>`;
+    }
+    return '';
 }
 
 /* ---- Utils ---- */

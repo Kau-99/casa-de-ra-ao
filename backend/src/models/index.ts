@@ -63,22 +63,29 @@ export interface IOrderItem {
   qty:       number;
 }
 
+export interface IPaymentDetails {
+  cardType?:    'debito' | 'credito';
+  cashAmount?:  number;
+  needsChange?: boolean;
+}
+
 export interface IOrder extends Document {
-  items:        IOrderItem[];
-  total:        number;
+  items:          IOrderItem[];
+  total:          number;
   customer: {
     name:  string;
     phone: string;
   };
-  deliveryType:  DeliveryType;
-  address:       string | null;
-  payment:       PaymentMethod;
-  status:        OrderStatus;
-  statusHistory: Array<{ status: string; at: Date }>;
-  whatsappSent:  boolean;
-  notes:         string | null;
-  createdAt:     Date;
-  updatedAt:     Date;
+  deliveryType:   DeliveryType;
+  address:        string | null;
+  payment:        PaymentMethod;
+  paymentDetails: IPaymentDetails;
+  status:         OrderStatus;
+  statusHistory:  Array<{ status: string; at: Date }>;
+  whatsappSent:   boolean;
+  notes:          string | null;
+  createdAt:      Date;
+  updatedAt:      Date;
 }
 
 const orderItemSchema = new Schema<IOrderItem>(
@@ -101,7 +108,12 @@ const orderSchema = new Schema<IOrder>(
     },
     deliveryType: { type: String, required: true, enum: ['delivery', 'pickup'] },
     address:      { type: String, default: null },
-    payment:      { type: String, required: true, enum: ['Pix', 'Cartão', 'Dinheiro'] },
+    payment:        { type: String, required: true, enum: ['Pix', 'Cartão', 'Dinheiro'] },
+    paymentDetails: {
+      cardType:    { type: String, enum: ['debito', 'credito'], default: null },
+      cashAmount:  { type: Number, default: null },
+      needsChange: { type: Boolean, default: null },
+    },
     status:        { type: String, default: 'pending', enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] },
     statusHistory: { type: [{ status: String, at: { type: Date, default: Date.now }, _id: false }], default: [] },
     whatsappSent:  { type: Boolean, default: false },

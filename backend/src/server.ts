@@ -53,6 +53,17 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/* ---- Configurações públicas da loja (PIX, WhatsApp, endereço) ---- */
+app.get('/api/config', (_req, res) => {
+  res.json({
+    pixKey:    process.env.STORE_PIX_KEY   ?? '',
+    storeName: process.env.STORE_NAME      ?? 'Helvinho Rações',
+    storeCity: process.env.STORE_CITY      ?? 'São Paulo',
+    whatsapp:  process.env.STORE_WHATSAPP  ?? '5511999999999',
+    address:   process.env.STORE_ADDRESS   ?? '',
+  });
+});
+
 /* ---- Rotas ---- */
 app.use('/api/products', productsRouter);
 app.use('/api/orders',   ordersRouter);

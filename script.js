@@ -143,6 +143,7 @@ let cart     = JSON.parse(localStorage.getItem('helvinhoCart'))     || [];
 let wishlist = JSON.parse(localStorage.getItem('helvinhoWishlist')) || [];
 let currentFilter   = 'all';
 let _routerBusy     = false; // impede que window.location.hash = x dispare o hashchange listener em loop
+let storeConfig     = {}; // carregado de /api/config uma vez
 
 /* getOrCreateInstance: garante no máximo uma instância Bootstrap por elemento,
    independente de quantas vezes a função for chamada */
@@ -176,6 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const hash = window.location.hash.replace('#', '');
     router(hash && document.getElementById('view-' + hash) ? hash : 'home');
+
+    /* Carrega configurações da loja (PIX key, WhatsApp, endereço) */
+    fetch(API_BASE + '/config').then(r => r.json()).then(d => { storeConfig = d; }).catch(() => {});
 
     /* Carrega produtos da API e renderiza — skeletons já foram mostrados pelo router */
     loadProducts().then(() => {
@@ -815,7 +819,39 @@ function checkoutWhatsApp() {
     }
 }
 
-function finalizeOrder() {
+/* ------- Alternância de seção de pagamento no checkout ------- */
+function onPaymentChange() {
+    const v = document.getElementById('payment-method')?.value ?? 'Pix';
+    document.getElementById('pix-notice')?.classList.toggle('d-none',   v !== 'Pix');
+    document.getElementById('card-type-section')?.classList.toggle('d-none', v !== 'Cartão');
+    document.getElementById('cash-section')?.classList.toggle('d-none',  v !== 'Dinheiro');
+    if (v !== 'Dinheiro') {
+        document.getElementById('change-display')?.classList.add('d-none');
+        document.getElementById('no-change-display')?.classList.add('d-none');
+    }
+}
+
+function updateChange() {
+    const cashEl   = document.getElementById('cash-amount');
+    const cash     = parseFloat(cashEl?.value ?? '0') || 0;
+    const total    = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const change   = cash - total;
+    const dispEl   = document.getElementById('change-display');
+    const noChgEl  = document.getElementById('no-change-display');
+    const amtEl    = document.getElementById('change-amount');
+    if (!cash) { dispEl?.classList.add('d-none'); noChgEl?.classList.add('d-none'); return; }
+    if (change > 0) {
+        if (amtEl) amtEl.textContent = formatMoney(change);
+        dispEl?.classList.remove('d-none');
+        noChgEl?.classList.add('d-none');
+    } else {
+        dispEl?.classList.add('d-none');
+        noChgEl?.classList.remove('d-none');
+    }
+}
+
+/* ------- Criação do pedido e lógica por método de pagamento ------- */
+async function finalizeOrder() {
     const isDelivery = document.getElementById('pills-delivery-tab')?.classList.contains('active') ?? true;
     const address    = (document.getElementById('delivery-address')?.value || '').trim();
     const payment    = document.getElementById('payment-method')?.value || 'Pix';
@@ -825,33 +861,189 @@ function finalizeOrder() {
         return;
     }
 
-    let msg   = '🐾 Olá, *Helvinho Rações*!\nGostaria de fazer um pedido:\n\n';
-    let total = 0;
+    /* Coleta detalhes específicos do método de pagamento */
+    const paymentDetails = {};
+    if (payment === 'Cartão') {
+        paymentDetails.cardType = document.querySelector('input[name="cardType"]:checked')?.value || 'debito';
+    }
+    if (payment === 'Dinheiro') {
+        const cash = parseFloat(document.getElementById('cash-amount')?.value || '0') || 0;
+        if (cash > 0) {
+            paymentDetails.cashAmount  = cash;
+            paymentDetails.needsChange = cash > cart.reduce((s, i) => s + i.price * i.qty, 0);
+        }
+    }
 
-    cart.forEach(item => {
-        const sub = item.price * item.qty;
-        total += sub;
-        msg += '▪ ' + item.qty + 'x ' + item.name + ' → ' + formatMoney(sub) + '\n';
+    const btn = document.getElementById('checkout-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Confirmando...'; }
+
+    try {
+        const res  = await fetch(API_BASE + '/orders', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                items: cart.map(i => ({ productId: i.id, name: i.name, price: i.price, qty: i.qty })),
+                deliveryType:   isDelivery ? 'delivery' : 'pickup',
+                address:        isDelivery ? address : undefined,
+                payment,
+                paymentDetails: Object.keys(paymentDetails).length ? paymentDetails : undefined,
+            }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showToast('<i class="bi bi-exclamation-circle me-2"></i>' + (data.error || 'Erro ao confirmar pedido.'));
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Confirmar pedido'; }
+            return;
+        }
+
+        /* PIX: mostra tela de QR code antes de limpar carrinho */
+        if (payment === 'Pix') {
+            showPixScreen(data.total);
+            return;
+        }
+
+        /* Dinheiro / Cartão: notifica via WhatsApp e finaliza */
+        _sendOrderWhatsApp(data, isDelivery, address, payment, paymentDetails);
+        _clearCheckout();
+        showToast('<i class="bi bi-check-circle-fill me-2"></i>Pedido confirmado! Aguarde o contato da loja.');
+
+    } catch {
+        showToast('<i class="bi bi-exclamation-circle me-2"></i>Erro de conexão. Tente novamente.');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Confirmar pedido'; }
+    }
+}
+
+function showPixScreen(total) {
+    const pixKey = storeConfig.pixKey || '';
+    if (!pixKey) {
+        /* Loja ainda não configurou chave PIX — finaliza normalmente */
+        _clearCheckout();
+        showToast('<i class="bi bi-check-circle-fill me-2"></i>Pedido confirmado! Entre em contato para pagar via PIX.');
+        return;
+    }
+
+    const payload = _generatePixPayload(
+        pixKey, total,
+        storeConfig.storeName || 'Helvinho Racoes',
+        storeConfig.storeCity || 'SAO PAULO'
+    );
+
+    document.getElementById('checkout-step-form')?.classList.add('d-none');
+    document.getElementById('pix-screen')?.classList.remove('d-none');
+
+    const qrImg = document.getElementById('pix-qr-img');
+    if (qrImg) qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(payload);
+
+    const codeEl = document.getElementById('pix-code');
+    if (codeEl) codeEl.value = payload;
+
+    const totalEl = document.getElementById('pix-total');
+    if (totalEl) totalEl.textContent = formatMoney(total);
+
+    const btn = document.getElementById('checkout-btn');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Já paguei';
+        btn.onclick = () => {
+            _clearCheckout();
+            /* Restaura estado do modal para próximo uso */
+            document.getElementById('checkout-step-form')?.classList.remove('d-none');
+            document.getElementById('pix-screen')?.classList.add('d-none');
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Confirmar pedido';
+            btn.onclick = finalizeOrder;
+            showToast('<i class="bi bi-check-circle-fill me-2"></i>Pedido confirmado! Aguardamos a confirmação do PIX.');
+        };
+    }
+}
+
+function copyPixCode() {
+    const el = document.getElementById('pix-code');
+    if (!el) return;
+    navigator.clipboard.writeText(el.value).then(() => {
+        showToast('<i class="bi bi-check-circle me-2"></i>Código PIX copiado!');
+    }).catch(() => {
+        el.select(); document.execCommand('copy');
+        showToast('<i class="bi bi-check-circle me-2"></i>Código PIX copiado!');
     });
+}
 
-    msg += '\n*TOTAL: ' + formatMoney(total) + '*\n';
-    msg += '━━━━━━━━━━━━━━━━━━\n';
-    msg += isDelivery
-        ? '🛵 *ENTREGA*\n📍 ' + address + '\n💳 Pagamento: ' + payment
-        : '🛍️ *RETIRADA NA LOJA*\nAv. das Patas, 1234 — Jardins, SP';
-
-    window.open('https://wa.me/5511999999999?text=' + encodeURIComponent(msg), '_blank');
-
-    /* Limpa o carrinho imediatamente após abrir o WhatsApp — o pedido já
-       está na conversa e manter itens causaria confusão num próximo acesso */
+function _clearCheckout() {
     cart = [];
     saveCart();
     updateCartUI();
+    bootstrap.Modal.getInstance(document.getElementById('checkoutModal'))?.hide();
+    /* Limpa campos para próxima abertura */
+    const addr = document.getElementById('delivery-address');
+    const cash = document.getElementById('cash-amount');
+    if (addr) addr.value = '';
+    if (cash) cash.value = '';
+    document.getElementById('change-display')?.classList.add('d-none');
+    document.getElementById('no-change-display')?.classList.add('d-none');
+}
 
-    const checkoutInst = bootstrap.Modal.getInstance(document.getElementById('checkoutModal'));
-    if (checkoutInst) checkoutInst.hide();
+function _sendOrderWhatsApp(order, isDelivery, address, payment, paymentDetails) {
+    const whatsapp = storeConfig.whatsapp || '5511999999999';
+    let msg = '🐾 Olá, *Helvinho Rações*!\n\n';
 
-    showToast('<i class="bi bi-check-circle-fill me-2"></i>Pedido enviado! Aguarde o contato da loja.');
+    order.items.forEach(i => {
+        msg += '▪ ' + i.qty + 'x ' + i.name + ' → ' + formatMoney(i.price * i.qty) + '\n';
+    });
+
+    msg += '\n*TOTAL: ' + formatMoney(order.total) + '*\n';
+    msg += '━━━━━━━━━━━━━━━━━━\n';
+
+    if (isDelivery) {
+        msg += '🛵 *ENTREGA*\n📍 ' + address + '\n';
+    } else {
+        msg += '🛍️ *RETIRADA NA LOJA*\n';
+    }
+
+    if (payment === 'Cartão') {
+        msg += '💳 Cartão ' + (paymentDetails.cardType === 'credito' ? 'Crédito' : 'Débito') + ' (levar maquininha)';
+    } else if (payment === 'Dinheiro') {
+        const cash   = paymentDetails.cashAmount || 0;
+        const change = Math.max(0, cash - order.total);
+        msg += '💵 Dinheiro' + (cash ? ' — tem ' + formatMoney(cash) + (change > 0 ? ' (troco ' + formatMoney(change) + ')' : ', sem troco') : '');
+    }
+
+    window.open('https://wa.me/' + whatsapp + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
+/* PIX — geração do payload EMV (padrão BR Code do Banco Central) */
+function _generatePixPayload(key, amount, name, city) {
+    function tlv(id, val) {
+        return id + val.length.toString().padStart(2, '0') + val;
+    }
+    /* Remove acentos e limita tamanho dos campos de texto */
+    const safeName = name.normalize('NFD').replace(/[̀-ͯ]/g, '').substring(0, 25).toUpperCase();
+    const safeCity = city.normalize('NFD').replace(/[̀-ͯ]/g, '').substring(0, 15).toUpperCase();
+
+    const pixInfo = tlv('00', 'BR.GOV.BCB.PIX') + tlv('01', key);
+    const body =
+        tlv('00', '01') +
+        tlv('26', pixInfo) +
+        tlv('52', '0000') +
+        tlv('53', '986') +
+        (amount > 0 ? tlv('54', amount.toFixed(2)) : '') +
+        tlv('58', 'BR') +
+        tlv('59', safeName) +
+        tlv('60', safeCity) +
+        tlv('62', tlv('05', '***')) +
+        '6304';
+
+    return body + _crc16(body);
+}
+
+function _crc16(str) {
+    let crc = 0xFFFF;
+    for (let i = 0; i < str.length; i++) {
+        crc ^= str.charCodeAt(i) << 8;
+        for (let j = 0; j < 8; j++) {
+            crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+        }
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0');
 }
 
 /* Atalho para compra avulsa — abre WhatsApp direto sem passar pelo carrinho */
@@ -863,13 +1055,14 @@ function orderDirectWhatsApp(id) {
         ? 'Por *' + formatMoney(p.price) + '* ~~' + formatMoney(p.originalPrice) + '~~'
         : '*' + formatMoney(p.price) + '*';
 
+    const whatsapp = storeConfig.whatsapp || '5511999999999';
     const msg = '🐾 Olá, *Helvinho Rações*!\n\n' +
                 'Gostaria de pedir:\n' +
                 '▪ 1x ' + p.name + '\n' +
                 precoInfo + '\n\n' +
                 'Poderia confirmar disponibilidade e prazo de entrega? 😊';
 
-    window.open('https://wa.me/5511999999999?text=' + encodeURIComponent(msg), '_blank');
+    window.open('https://wa.me/' + whatsapp + '?text=' + encodeURIComponent(msg), '_blank');
 }
 
 
