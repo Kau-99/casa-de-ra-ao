@@ -119,7 +119,9 @@ async function showApp() {
 }
 
 /* ---- Router ---- */
+let currentView = 'dashboard';
 function showView(view) {
+    currentView = view;
     closeSidebar();
     ['dashboard','products','orders','messages','financeiro','despesas','estoque','activity','newsletter','settings'].forEach(v => {
         document.getElementById('view-' + v)?.classList.toggle('d-none', v !== view);
@@ -318,7 +320,7 @@ async function loadSalesChart(days) {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw) } } },
             scales: {
-                y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+                y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: chartGrid() } },
                 x: { ticks: { font: { size: 11 } }, grid: { display: false } },
             },
         },
@@ -1305,7 +1307,7 @@ function renderFinEvolutionChart(buckets) {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmtMoney(c.raw)}` } } },
             scales: {
-                y: { beginAtZero: true, ticks: { callback: v => 'R$' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+                y: { beginAtZero: true, ticks: { callback: v => 'R$' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: chartGrid() } },
                 x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } },
             },
         },
@@ -1411,7 +1413,7 @@ function renderFinCatChart(byCat) {
             indexAxis: 'y', responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw) } } },
             scales: {
-                x: { beginAtZero: true, ticks: { callback: v => 'R$' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+                x: { beginAtZero: true, ticks: { callback: v => 'R$' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: chartGrid() } },
                 y: { ticks: { font: { size: 11 } }, grid: { display: false } },
             },
         },
@@ -2099,21 +2101,42 @@ function showStockErr(msg) {
 }
 
 /* ---- Dark mode ---- */
+function setTheme(theme) {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    /* data-bs-theme deixa todos os componentes Bootstrap (tabelas, badges,
+       dropdowns, inputs, modais) cientes do tema automaticamente */
+    root.setAttribute('data-bs-theme', theme);
+    const icon = document.getElementById('dark-icon');
+    if (icon) icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+    /* Cores padrão dos gráficos seguem o tema */
+    if (window.Chart) {
+        Chart.defaults.color       = theme === 'dark' ? '#94a3b8' : '#6b7280';
+        Chart.defaults.borderColor = theme === 'dark' ? '#334155' : '#f3f4f6';
+    }
+}
+
 function applyTheme() {
     const saved = localStorage.getItem('adminTheme') ??
         (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', saved);
-    const icon = document.getElementById('dark-icon');
-    if (icon) icon.className = saved === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+    setTheme(saved);
+}
+
+/* Cor das linhas de grade dos gráficos conforme o tema */
+function chartGrid() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? '#334155' : '#f3f4f6';
 }
 
 function toggleDarkMode() {
-    const isDark  = document.documentElement.getAttribute('data-theme') === 'dark';
-    const theme   = isDark ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const theme  = isDark ? 'light' : 'dark';
+    setTheme(theme);
     localStorage.setItem('adminTheme', theme);
-    const icon = document.getElementById('dark-icon');
-    if (icon) icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+    /* Re-renderiza a view atual para os gráficos pegarem as novas cores */
+    if (typeof showView === 'function' && document.getElementById('admin-app') &&
+        !document.getElementById('admin-app').classList.contains('d-none')) {
+        showView(currentView);
+    }
 }
 
 /* ---- PWA + notificações ---- */
