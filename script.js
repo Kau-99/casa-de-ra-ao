@@ -412,11 +412,11 @@ function buildProductCard(p, idx) {
                      ' loading="lazy" decoding="async" width="400" height="300"' +
                      ' onerror="this.src=\'https://placehold.co/400x300/e8f5ee/2d9e5f?text=Produto\'">' +
                 '<div class="card-actions" role="group" aria-label="Ações">' +
-                    '<button class="action-btn" onclick="openQuickView(' + p.id + ')"' +
+                    '<button class="action-btn" onclick="openQuickView(\'' + p.id + '\')"' +
                             ' aria-label="Ver detalhes de ' + escAttr(p.name) + '" title="Visualizar">' +
                         '<i class="bi bi-eye" aria-hidden="true"></i></button>' +
                     '<button class="action-btn' + (inWL ? ' wishlisted' : '') + '"' +
-                            ' onclick="toggleWishlist(' + p.id + ', this)"' +
+                            ' onclick="toggleWishlist(\'' + p.id + '\', this)"' +
                             ' aria-label="' + (inWL ? 'Remover dos favoritos' : 'Adicionar aos favoritos') + '"' +
                             ' title="Favoritar">' +
                         '<i class="bi bi-heart' + (inWL ? '-fill' : '') + '" aria-hidden="true"></i></button>' +
@@ -433,11 +433,11 @@ function buildProductCard(p, idx) {
                     '</div>' +
                 '</div>' +
                 '<div class="card-btn-group">' +
-                    '<button class="card-add-btn" onclick="addToCart(' + p.id + ')"' +
+                    '<button class="card-add-btn" onclick="addToCart(\'' + p.id + '\')"' +
                             ' aria-label="Adicionar ' + escAttr(p.name) + ' ao carrinho">' +
                         '<i class="bi bi-bag-plus me-1" aria-hidden="true"></i>Adicionar' +
                     '</button>' +
-                    '<button class="card-wa-btn" onclick="orderDirectWhatsApp(' + p.id + ')"' +
+                    '<button class="card-wa-btn" onclick="orderDirectWhatsApp(\'' + p.id + '\')"' +
                             ' aria-label="Pedir ' + escAttr(p.name) + ' pelo WhatsApp" title="Pedir pelo WhatsApp">' +
                         '<i class="bi bi-whatsapp" aria-hidden="true"></i>' +
                     '</button>' +
@@ -522,8 +522,8 @@ function _doSearch() {
             if (hits.length) {
                 suggestions.innerHTML = hits.map(p =>
                     '<div class="suggestion-item" role="option" tabindex="0"' +
-                         ' onclick="selectSuggestion(' + p.id + ')"' +
-                         ' onkeydown="if(event.key===\'Enter\')selectSuggestion(' + p.id + ')">' +
+                         ' onclick="selectSuggestion(\'' + p.id + '\')"' +
+                         ' onkeydown="if(event.key===\'Enter\')selectSuggestion(\'' + p.id + '\')">' +
                         '<img src="' + p.img + '" alt="" loading="lazy"' +
                              ' onerror="this.src=\'https://placehold.co/36x36/e8f5ee/2d9e5f?text=P\'">' +
                         '<div>' +
