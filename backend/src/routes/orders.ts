@@ -116,7 +116,10 @@ router.patch(
     try {
       const order = await Order.findByIdAndUpdate(
         req.params.id,
-        { status: req.body.status },
+        {
+          status: req.body.status,
+          $push:  { statusHistory: { status: req.body.status, at: new Date() } },
+        },
         { new: true, runValidators: true }
       );
       if (!order) return next(new AppError('Pedido não encontrado.', 404));

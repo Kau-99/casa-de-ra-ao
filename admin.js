@@ -8,6 +8,9 @@ let orders           = [];
 let messages         = [];
 let editingProductId = null;
 let viewingMessageId = null;
+let currentDateFilter = 'all';
+let lastOrderTotal    = parseInt(localStorage.getItem('adminLastOrderCount') ?? '0', 10);
+let salesChartInstance = null;
 
 /* ---- Init ---- */
 document.addEventListener('DOMContentLoaded', () => {
@@ -116,6 +119,44 @@ async function showApp() {
     document.getElementById('admin-app').classList.remove('d-none');
     setText('topbar-user', res.data.email ?? '');
     showView('dashboard');
+    startPolling();
+}
+
+/* ---- Polling — notifica quando chega pedido novo ---- */
+function startPolling() {
+    setInterval(async () => {
+        if (document.hidden) return;
+        const res = await api('GET', '/orders?limit=1');
+        if (!res?.ok) return;
+        const total = res.data.pagination?.total ?? 0;
+        if (lastOrderTotal > 0 && total > lastOrderTotal) {
+            const n = total - lastOrderTotal;
+            playNotificationSound();
+            toast(`🛍️ ${n} novo${n > 1 ? 's' : ''} pedido${n > 1 ? 's' : ''}!`, 'success');
+            const navBtn = document.getElementById('nav-orders');
+            navBtn?.classList.add('nav-flash');
+            setTimeout(() => navBtn?.classList.remove('nav-flash'), 2500);
+        }
+        lastOrderTotal = total;
+        localStorage.setItem('adminLastOrderCount', String(total));
+    }, 30000);
+}
+
+function playNotificationSound() {
+    try {
+        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.45);
+    } catch { /* AudioContext indisponível no navegador */ }
 }
 
 /* ---- Router ---- */
@@ -158,9 +199,73 @@ async function loadStats() {
     }
 }
 
+/* ---- Gráfico de vendas ---- */
+async function loadSalesChart(days) {
+    document.getElementById('chart-7d')?.classList.toggle('active',  days === 7);
+    document.getElementById('chart-30d')?.classList.toggle('active', days === 30);
+
+    const res = await api('GET', '/orders?limit=500');
+    if (!res?.ok) return;
+    const allOrders = res.data.orders ?? [];
+
+    const labels = [], data = [];
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+        const start = new Date(d); start.setHours(0,0,0,0);
+        const end   = new Date(d); end.setHours(23,59,59,999);
+        data.push(
+            allOrders
+                .filter(o => o.status !== 'cancelled' && new Date(o.createdAt) >= start && new Date(o.createdAt) <= end)
+                .reduce((s, o) => s + o.total, 0)
+        );
+    }
+
+    const canvas = document.getElementById('sales-chart');
+    if (!canvas) return;
+    if (salesChartInstance) { salesChartInstance.destroy(); salesChartInstance = null; }
+
+    salesChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Faturamento',
+                data,
+                borderColor: '#2d9e5f',
+                backgroundColor: 'rgba(45,158,95,0.08)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#2d9e5f',
+                pointRadius: 3,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: { label: ctx => fmtMoney(ctx.raw) },
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => 'R$ ' + Number(v).toFixed(0), font: { size: 11 } },
+                    grid: { color: '#f3f4f6' },
+                },
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+            },
+        },
+    });
+}
+
 /* ---- Dashboard ---- */
 async function loadDashboard() {
     await loadStats();
+    loadSalesChart(7);
     tableLoading('dash-orders',   4, 4);
     tableLoading('dash-messages', 2, 4);
 
@@ -206,6 +311,23 @@ async function loadProducts() {
 }
 
 function renderProducts() {
+    /* Alerta de estoque crítico */
+    const zeroStock = products.filter(p => p.active && p.stock === 0);
+    const lowStock  = products.filter(p => p.active && p.stock > 0 && p.stock <= 5);
+    const banner    = document.getElementById('stock-banner');
+    const bannerTxt = document.getElementById('stock-banner-text');
+    if (banner && bannerTxt) {
+        if (zeroStock.length || lowStock.length) {
+            const parts = [];
+            if (zeroStock.length) parts.push(`${zeroStock.length} produto${zeroStock.length > 1 ? 's' : ''} sem estoque`);
+            if (lowStock.length)  parts.push(`${lowStock.length} com estoque baixo (≤ 5)`);
+            bannerTxt.textContent = '⚠️ ' + parts.join(' e ') + '. Verifique seus produtos.';
+            banner.classList.remove('d-none');
+        } else {
+            banner.classList.add('d-none');
+        }
+    }
+
     const q   = (document.getElementById('product-search')?.value ?? '').toLowerCase().trim();
     const cat = document.getElementById('product-cat')?.value ?? '';
     let list  = products;
@@ -232,7 +354,13 @@ function renderProducts() {
                 <span class="fw-semibold">${fmtMoney(p.price)}</span>
                 ${p.originalPrice ? `<br><span class="text-decoration-line-through text-muted small">${fmtMoney(p.originalPrice)}</span>` : ''}
             </td>
-            <td><span class="${p.stock === 0 ? 'fw-bold text-danger' : p.stock <= 5 ? 'fw-semibold text-warning' : 'text-muted'}">${p.stock} un.</span></td>
+            <td>
+                <span class="stock-edit ${p.stock === 0 ? 'fw-bold text-danger' : p.stock <= 5 ? 'fw-semibold text-warning' : 'text-muted'}"
+                      title="Clique para editar"
+                      onclick="editStockInline('${p._id}', ${p.stock}, this)">
+                    ${p.stock} un.
+                </span>
+            </td>
             <td>
                 <span class="badge rounded-pill ${p.active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}">
                     ${p.active ? 'Ativo' : 'Inativo'}
@@ -351,6 +479,37 @@ async function saveProduct() {
     loadStats();
 }
 
+function editStockInline(id, currentStock, spanEl) {
+    const input = document.createElement('input');
+    input.type      = 'number';
+    input.value     = currentStock;
+    input.min       = '0';
+    input.className = 'stock-input form-control form-control-sm d-inline-block';
+
+    spanEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    async function save() {
+        const newStock = Math.max(0, parseInt(input.value) || 0);
+        if (newStock !== currentStock) {
+            const res = await api('PUT', '/products/' + id, { stock: newStock });
+            if (res?.ok) {
+                const p = products.find(x => x._id === id);
+                if (p) p.stock = newStock;
+                toast('Estoque atualizado!', 'success');
+            }
+        }
+        renderProducts();
+    }
+
+    input.addEventListener('blur',    save);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  input.blur();
+        if (e.key === 'Escape') renderProducts();
+    });
+}
+
 async function toggleActive(id, isActive) {
     const ok = await showConfirm(
         isActive ? 'Desativar este produto?' : 'Ativar este produto?',
@@ -380,6 +539,25 @@ function updateDescCount() {
     if (el) { el.textContent = len; el.className = len > 500 ? 'text-danger fw-bold' : ''; }
 }
 
+/* ---- Filtro de data ---- */
+function setDateFilter(period) {
+    currentDateFilter = period;
+    ['all','today','week','month'].forEach(p => {
+        document.getElementById('df-' + p)?.classList.toggle('active', p === period);
+    });
+    renderOrders();
+}
+
+function applyDateFilter(list) {
+    if (currentDateFilter === 'all') return list;
+    const now   = new Date();
+    const start = new Date();
+    if (currentDateFilter === 'today') { start.setHours(0,0,0,0); }
+    if (currentDateFilter === 'week')  { start.setDate(now.getDate() - 7); }
+    if (currentDateFilter === 'month') { start.setDate(now.getDate() - 30); }
+    return list.filter(o => new Date(o.createdAt) >= start);
+}
+
 /* ---- Orders ---- */
 async function loadOrders() {
     tableLoading('orders-tbody', 8);
@@ -390,8 +568,9 @@ async function loadOrders() {
 }
 
 function renderOrders() {
-    const filter = document.getElementById('order-filter')?.value ?? '';
-    const list   = filter ? orders.filter(o => o.status === filter) : orders;
+    const filter    = document.getElementById('order-filter')?.value ?? '';
+    let   list      = filter ? orders.filter(o => o.status === filter) : orders;
+    list = applyDateFilter(list);
     const tbody  = document.getElementById('orders-tbody');
     if (!tbody) return;
 
@@ -436,6 +615,9 @@ function openOrderDetail(id) {
         };
     }
 
+    const btnWA = document.getElementById('btn-whatsapp-order');
+    if (btnWA) btnWA.onclick = () => openOrderWhatsApp(o);
+
     const body = document.getElementById('order-detail-body');
     if (body) {
         const items = o.items.map(i => `
@@ -443,6 +625,21 @@ function openOrderDetail(id) {
                 <div><span class="small fw-semibold">${escHtml(i.name)}</span><span class="text-muted small"> × ${i.qty}</span></div>
                 <span class="small fw-semibold">${fmtMoney(i.price * i.qty)}</span>
             </div>`).join('');
+
+        const history = (o.statusHistory ?? []);
+        const timelineHtml = history.length
+            ? `<div class="mt-3">
+                <p class="small fw-semibold mb-2">Histórico</p>
+                <div class="timeline">
+                    ${history.map((h, idx) => `
+                        <div class="timeline-item">
+                            <div class="tl-dot ${idx < history.length - 1 ? 'old' : ''}"></div>
+                            <span class="small fw-semibold">${statusBadge(h.status)}</span>
+                            <span class="text-muted small ms-2">${fmtDate(h.at)}</span>
+                        </div>`).join('')}
+                </div>
+               </div>`
+            : '';
 
         body.innerHTML = `
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -453,12 +650,13 @@ function openOrderDetail(id) {
             <div class="d-flex justify-content-between fw-bold pt-3 mb-3 border-top">
                 <span>Total</span><span>${fmtMoney(o.total)}</span>
             </div>
-            <div class="row g-2 text-muted small">
+            <div class="row g-2 text-muted small mb-1">
                 <div class="col-6"><strong>Entrega:</strong> ${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}</div>
                 <div class="col-6"><strong>Pagamento:</strong> ${escHtml(o.payment)}</div>
                 ${o.address ? `<div class="col-12"><strong>Endereço:</strong> ${escHtml(o.address)}</div>` : ''}
                 ${o.notes   ? `<div class="col-12"><strong>Obs:</strong> ${escHtml(o.notes)}</div>` : ''}
-            </div>`;
+            </div>
+            ${timelineHtml}`;
     }
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('orderDetailModal')).show();
@@ -484,6 +682,22 @@ async function saveOrderStatus() {
     } else {
         toast(res?.data?.error ?? 'Erro ao atualizar status.', 'danger');
     }
+}
+
+function openOrderWhatsApp(o) {
+    const statusLabels = { pending:'Recebido', confirmed:'Confirmado', preparing:'Em preparo', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' };
+    const lines = o.items.map(i => `▪ ${i.qty}x ${i.name} — ${fmtMoney(i.price * i.qty)}`).join('\n');
+    const msg =
+        `🐾 *Helvinho Rações*\n\n` +
+        `Pedido *#${o._id.slice(-6).toUpperCase()}* — ${statusLabels[o.status] ?? o.status}\n\n` +
+        `*Itens:*\n${lines}\n\n` +
+        `*Total: ${fmtMoney(o.total)}*\n` +
+        `━━━━━━━━━━━━━\n` +
+        (o.deliveryType === 'delivery'
+            ? `🛵 Entrega: ${o.address ?? 'endereço não informado'}`
+            : `🛍️ Retirada na loja`) +
+        `\n💳 Pagamento: ${o.payment}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
 /* ---- Messages ---- */

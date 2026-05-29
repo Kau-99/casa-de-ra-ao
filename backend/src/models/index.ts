@@ -5,7 +5,7 @@ import { Schema, model, Document, Types } from 'mongoose';
 ============================================================ */
 
 export type ProductCategory = 'Ração' | 'Acessórios' | 'Higiene' | 'Medicamentos';
-export type OrderStatus     = 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled';
+export type OrderStatus     = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
 export type DeliveryType    = 'delivery' | 'pickup';
 export type PaymentMethod   = 'Pix' | 'Cartão' | 'Dinheiro';
 export type AdminRole       = 'admin' | 'super';
@@ -70,14 +70,15 @@ export interface IOrder extends Document {
     name:  string;
     phone: string;
   };
-  deliveryType: DeliveryType;
-  address:      string | null;
-  payment:      PaymentMethod;
-  status:       OrderStatus;
-  whatsappSent: boolean;
-  notes:        string | null;
-  createdAt:    Date;
-  updatedAt:    Date;
+  deliveryType:  DeliveryType;
+  address:       string | null;
+  payment:       PaymentMethod;
+  status:        OrderStatus;
+  statusHistory: Array<{ status: string; at: Date }>;
+  whatsappSent:  boolean;
+  notes:         string | null;
+  createdAt:     Date;
+  updatedAt:     Date;
 }
 
 const orderItemSchema = new Schema<IOrderItem>(
@@ -101,9 +102,10 @@ const orderSchema = new Schema<IOrder>(
     deliveryType: { type: String, required: true, enum: ['delivery', 'pickup'] },
     address:      { type: String, default: null },
     payment:      { type: String, required: true, enum: ['Pix', 'Cartão', 'Dinheiro'] },
-    status:       { type: String, default: 'pending', enum: ['pending', 'confirmed', 'processing', 'delivered', 'cancelled'] },
-    whatsappSent: { type: Boolean, default: false },
-    notes:        { type: String, default: null, maxlength: 300 },
+    status:        { type: String, default: 'pending', enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'] },
+    statusHistory: { type: [{ status: String, at: { type: Date, default: Date.now }, _id: false }], default: [] },
+    whatsappSent:  { type: Boolean, default: false },
+    notes:         { type: String, default: null, maxlength: 300 },
   },
   { timestamps: true }
 );
