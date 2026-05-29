@@ -252,3 +252,35 @@ const activityLogSchema = new Schema<IActivityLog>({
 activityLogSchema.index({ createdAt: -1 });
 
 export const ActivityLog = model<IActivityLog>('ActivityLog', activityLogSchema);
+
+/* ============================================================
+   StockMovement — histórico de movimentações de estoque
+============================================================ */
+
+export interface IStockMovement extends Document {
+  productId:     Types.ObjectId;
+  productName:   string;
+  type:          'entrada' | 'saida';
+  quantity:      number;
+  reason:        string;
+  previousStock: number;
+  newStock:      number;
+  adminEmail:    string;
+  createdAt:     Date;
+}
+
+const stockMovementSchema = new Schema<IStockMovement>({
+  productId:     { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+  productName:   { type: String, required: true },
+  type:          { type: String, required: true, enum: ['entrada', 'saida'] },
+  quantity:      { type: Number, required: true, min: 1 },
+  reason:        { type: String, required: true },
+  previousStock: { type: Number, required: true },
+  newStock:      { type: Number, required: true },
+  adminEmail:    { type: String, default: '' },
+}, { timestamps: true });
+
+stockMovementSchema.index({ createdAt: -1 });
+stockMovementSchema.index({ productId: 1, createdAt: -1 });
+
+export const StockMovement = model<IStockMovement>('StockMovement', stockMovementSchema);

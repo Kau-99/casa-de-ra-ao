@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { type SortOrder } from 'mongoose';
-import { Product } from '../models';
+import { Product, StockMovement } from '../models';
 import { requireAuth } from '../middleware/auth';
 import {
   validateBody,
@@ -110,6 +110,55 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response, next: Nex
   } catch (err) {
     next(err);
   }
+});
+
+/* GET /api/products/stock/movements — histórico de movimentações (admin) */
+router.get('/stock/movements', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const limit = Number(req.query.limit ?? 100);
+    const productId = req.query.productId as string | undefined;
+    const filter: Record<string, unknown> = {};
+    if (productId) filter.productId = productId;
+    const movements = await StockMovement.find(filter).sort({ createdAt: -1 }).limit(limit);
+    res.json(movements);
+  } catch (err) { next(err); }
+});
+
+/* POST /api/products/:id/stock — ajuste manual de estoque com motivo */
+router.post('/:id/stock', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { type, quantity, reason } = req.body as {
+      type: 'entrada' | 'saida'; quantity: number; reason: string;
+    };
+    const qty = Math.abs(parseInt(String(quantity)));
+    if (!qty || !type || !reason) {
+      return next(new AppError('Tipo, quantidade e motivo são obrigatórios.', 400));
+    }
+
+    const product = await Product.findById(req.params.id);
+    if (!product) return next(new AppError('Produto não encontrado.', 404));
+
+    const delta    = type === 'entrada' ? qty : -qty;
+    const newStock = Math.max(0, product.stock + delta);
+
+    await Product.findByIdAndUpdate(product._id, { stock: newStock });
+    await StockMovement.create({
+      productId:    product._id,
+      productName:  product.name,
+      type, quantity: qty, reason,
+      previousStock: product.stock,
+      newStock,
+      adminEmail:   req.admin?.email ?? '',
+    });
+
+    logActivity(
+      req.admin?.email ?? '',
+      'Ajuste de estoque',
+      `${product.name}: ${type === 'entrada' ? '+' : '-'}${qty} un. — ${reason}`
+    );
+
+    res.json({ previousStock: product.stock, newStock, delta });
+  } catch (err) { next(err); }
 });
 
 export default router;

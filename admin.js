@@ -121,17 +121,19 @@ async function showApp() {
 /* ---- Router ---- */
 function showView(view) {
     closeSidebar();
-    ['dashboard','products','orders','messages','activity','newsletter','settings'].forEach(v => {
+    ['dashboard','products','orders','messages','financeiro','estoque','activity','newsletter','settings'].forEach(v => {
         document.getElementById('view-' + v)?.classList.toggle('d-none', v !== view);
         document.getElementById('nav-'  + v)?.classList.toggle('active', v === view);
     });
-    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', activity:'Log de Atividades', newsletter:'Newsletter', settings:'Configurações' };
+    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', financeiro:'Financeiro', estoque:'Estoque', activity:'Log de Atividades', newsletter:'Newsletter', settings:'Configurações' };
     setText('topbar-title', titles[view] ?? '');
 
     if (view === 'dashboard') loadDashboard();
     if (view === 'products')  loadProducts();
     if (view === 'orders')    loadOrders();
     if (view === 'messages')  loadMessages();
+    if (view === 'financeiro') loadFinanceiro();
+    if (view === 'estoque')    loadEstoque();
     if (view === 'activity')   loadActivity();
     if (view === 'newsletter') loadNewsletter();
     if (view === 'settings')   loadSettings();
@@ -1054,6 +1056,454 @@ async function saveSettings() {
 
     if (res?.ok) toast('Configurações salvas!', 'success');
     else toast(res?.data?.error ?? 'Erro ao salvar.', 'danger');
+}
+
+/* ======================================================
+   FINANCEIRO
+====================================================== */
+let finMonthlyChart = null;
+let finPaymentChart = null;
+let finCatChart     = null;
+let finOrders       = [];
+
+async function loadFinanceiro() {
+    const res = await api('GET', '/orders?limit=2000');
+    if (!res?.ok) return;
+    finOrders = res.data.orders ?? [];
+    renderFinanceiro();
+}
+
+function renderFinanceiro() {
+    const all    = finOrders;
+    const valid  = all.filter(o => o.status !== 'cancelled');
+    const now    = new Date();
+    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const curMon    = valid.filter(o => new Date(o.createdAt) >= curStart);
+    const pending   = all.filter(o => ['pending','confirmed','preparing','ready'].includes(o.status));
+    const total     = valid.reduce((s, o) => s + o.total, 0);
+    const mesFat    = curMon.reduce((s, o) => s + o.total, 0);
+    const pendFat   = pending.reduce((s, o) => s + o.total, 0);
+    const ticket    = valid.length ? total / valid.length : 0;
+
+    setText('fin-total',    fmtMoney(total));
+    setText('fin-mes',      fmtMoney(mesFat));
+    setText('fin-pendente', fmtMoney(pendFat));
+    setText('fin-ticket',   fmtMoney(ticket));
+
+    /* Últimos 6 meses */
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+        const s = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const e = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+        const mo = valid.filter(o => { const d = new Date(o.createdAt); return d >= s && d <= e; });
+        months.push({
+            label: s.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+            revenue: mo.reduce((s2, o) => s2 + o.total, 0),
+            count:   mo.length,
+        });
+    }
+
+    /* Por forma de pagamento */
+    const byPay = {};
+    valid.forEach(o => { byPay[o.payment] = (byPay[o.payment] ?? 0) + o.total; });
+
+    /* Por categoria (via items + produtos) */
+    const byCat = {};
+    valid.forEach(o => o.items.forEach(i => {
+        const prod = products.find(p => p._id === i.productId || p.name === i.name);
+        const cat  = prod?.category ?? 'Outros';
+        byCat[cat] = (byCat[cat] ?? 0) + i.price * i.qty;
+    }));
+
+    /* Top produtos */
+    const byProd = {};
+    valid.forEach(o => o.items.forEach(i => {
+        if (!byProd[i.name]) byProd[i.name] = { qty: 0, rev: 0 };
+        byProd[i.name].qty += i.qty;
+        byProd[i.name].rev += i.price * i.qty;
+    }));
+    const topProds = Object.entries(byProd)
+        .sort((a, b) => b[1].rev - a[1].rev)
+        .slice(0, 5);
+
+    /* Renderiza charts */
+    renderFinMonthlyChart(months);
+    renderFinPaymentChart(byPay);
+    renderFinCatChart(byCat);
+
+    /* Top produtos table */
+    const tbody = document.getElementById('fin-top-products');
+    if (tbody) {
+        tbody.innerHTML = !topProds.length
+            ? '<tr><td colspan="4" class="text-center text-muted py-3 small">Sem dados de vendas.</td></tr>'
+            : topProds.map(([name, d], i) => `
+                <tr>
+                    <td><span class="badge bg-secondary-subtle text-secondary">${i + 1}°</span></td>
+                    <td class="small fw-semibold">${escHtml(name.length > 28 ? name.slice(0,28)+'…' : name)}</td>
+                    <td class="small text-muted">${d[1].qty} un.</td>
+                    <td class="small fw-semibold text-success">${fmtMoney(d[1].rev)}</td>
+                </tr>`).join('');
+    }
+}
+
+function renderFinMonthlyChart(months) {
+    const canvas = document.getElementById('fin-monthly-chart');
+    if (!canvas) return;
+    if (finMonthlyChart) { finMonthlyChart.destroy(); finMonthlyChart = null; }
+    finMonthlyChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: months.map(m => m.label),
+            datasets: [{
+                label: 'Faturamento', data: months.map(m => m.revenue),
+                backgroundColor: 'rgba(45,158,95,.7)', borderColor: '#2d9e5f',
+                borderWidth: 1, borderRadius: 6,
+            }],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw) } } },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => 'R$' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+            },
+        },
+    });
+}
+
+function renderFinPaymentChart(byPay) {
+    const canvas = document.getElementById('fin-payment-chart');
+    if (!canvas) return;
+    if (finPaymentChart) { finPaymentChart.destroy(); finPaymentChart = null; }
+    const entries = Object.entries(byPay);
+    if (!entries.length) return;
+    finPaymentChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: entries.map(([k]) => k),
+            datasets: [{
+                data: entries.map(([, v]) => v),
+                backgroundColor: ['#2d9e5f','#4285f4','#ff6b35','#fbbf24'],
+                borderWidth: 2, borderColor: '#fff',
+            }],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
+                tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtMoney(c.raw)}` } },
+            },
+        },
+    });
+}
+
+function renderFinCatChart(byCat) {
+    const canvas = document.getElementById('fin-cat-chart');
+    if (!canvas) return;
+    if (finCatChart) { finCatChart.destroy(); finCatChart = null; }
+    const entries = Object.entries(byCat).sort((a, b) => Number(b[1]) - Number(a[1]));
+    if (!entries.length) return;
+    finCatChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: entries.map(([k]) => k),
+            datasets: [{
+                label: 'Receita', data: entries.map(([, v]) => v),
+                backgroundColor: ['#2d9e5f','#4285f4','#ff6b35','#fbbf24'],
+                borderRadius: 6,
+            }],
+        },
+        options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw) } } },
+            scales: {
+                x: { beginAtZero: true, ticks: { callback: v => 'R$' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+                y: { ticks: { font: { size: 11 } }, grid: { display: false } },
+            },
+        },
+    });
+}
+
+function exportFinanceiroCSV() {
+    const valid = finOrders.filter(o => o.status !== 'cancelled');
+    if (!valid.length) { toast('Nenhum dado para exportar.', 'warning'); return; }
+
+    const now    = new Date();
+    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const curMon = valid.filter(o => new Date(o.createdAt) >= curStart);
+    const total  = valid.reduce((s, o) => s + o.total, 0);
+    const mesFat = curMon.reduce((s, o) => s + o.total, 0);
+    const ticket = valid.length ? total / valid.length : 0;
+
+    const byPay = {};
+    valid.forEach(o => { byPay[o.payment] = (byPay[o.payment] ?? 0) + o.total; });
+
+    const rows = [
+        ['RELATÓRIO FINANCEIRO — HELVINHO RAÇÕES'],
+        [`Gerado em: ${fmtDate(now.toISOString())}`],
+        [],
+        ['RESUMO'],
+        ['Faturamento total', `R$${total.toFixed(2).replace('.',',')}`],
+        ['Faturamento do mês', `R$${mesFat.toFixed(2).replace('.',',')}`],
+        ['Ticket médio', `R$${ticket.toFixed(2).replace('.',',')}`],
+        ['Total de pedidos', valid.length],
+        [],
+        ['POR FORMA DE PAGAMENTO'],
+        ...Object.entries(byPay).map(([k, v]) => [k, `R$${Number(v).toFixed(2).replace('.',',')}`]),
+        [],
+        ['PEDIDOS DETALHADOS'],
+        ['Nº Pedido','Data','Status','Total (R$)','Pagamento','Tipo Entrega'],
+        ...valid.map(o => [
+            '#' + o._id.slice(-6).toUpperCase(),
+            fmtDate(o.createdAt),
+            { pending:'Pendente', confirmed:'Confirmado', preparing:'Preparando', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' }[o.status] ?? o.status,
+            o.total.toFixed(2).replace('.',','),
+            o.payment,
+            o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada',
+        ]),
+    ];
+
+    const csv = '﻿' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(';')).join('\r\n');
+    const today = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-');
+    const blob  = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href = url; a.download = `financeiro_helvinho_${today}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast('Relatório financeiro exportado!', 'success');
+}
+
+/* ======================================================
+   ESTOQUE
+====================================================== */
+let stockProducts   = [];
+let currentStockProductId   = null;
+let currentStockProductName = '';
+let currentStockQty         = 0;
+
+async function loadEstoque() {
+    tableLoading('stock-tbody', 7);
+    tableLoading('movements-tbody', 4, 8);
+
+    const [pRes, mvRes] = await Promise.all([
+        api('GET', '/products?limit=100'),
+        api('GET', '/products/stock/movements?limit=30'),
+    ]);
+
+    if (!pRes?.ok) return;
+    stockProducts = pRes.data.items ?? [];
+
+    /* Métricas */
+    const active  = stockProducts.filter(p => p.active);
+    const total   = active.reduce((s, p) => s + p.stock * p.price, 0);
+    const low     = active.filter(p => p.stock > 0 && p.stock <= 5).length;
+    const empty   = active.filter(p => p.stock === 0).length;
+    setText('st-total', active.length);
+    setText('st-value', fmtMoney(total));
+    setText('st-low',   low);
+    setText('st-empty', empty);
+
+    renderStockTable();
+
+    /* Movimentações */
+    const mvTbody = document.getElementById('movements-tbody');
+    if (mvTbody && mvRes?.ok) {
+        const mvs = mvRes.data ?? [];
+        mvTbody.innerHTML = !mvs.length
+            ? '<tr><td colspan="4" class="text-center text-muted py-3 small">Nenhuma movimentação ainda.</td></tr>'
+            : mvs.map(m => `
+                <tr>
+                    <td data-label="Produto"><span class="small">${escHtml(m.productName.length > 20 ? m.productName.slice(0,20)+'…' : m.productName)}</span></td>
+                    <td data-label="Tipo"><span class="badge rounded-pill ${m.type === 'entrada' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}" style="font-size:.68rem">${m.type === 'entrada' ? '↑ Entrada' : '↓ Saída'}</span></td>
+                    <td data-label="Qtd"><span class="small fw-semibold ${m.type === 'entrada' ? 'text-success' : 'text-danger'}">${m.type === 'entrada' ? '+' : '-'}${m.quantity}</span></td>
+                    <td data-label="Motivo"><span class="small text-muted">${escHtml(m.reason)}</span></td>
+                </tr>`).join('');
+    }
+}
+
+function renderStockTable() {
+    const filter = document.getElementById('st-filter')?.value ?? '';
+    let list = stockProducts.filter(p => p.active);
+
+    if (filter === 'empty') list = list.filter(p => p.stock === 0);
+    else if (filter === 'low') list = list.filter(p => p.stock > 0 && p.stock <= 5);
+    else if (filter === 'ok')  list = list.filter(p => p.stock > 5);
+
+    const tbody = document.getElementById('stock-tbody');
+    if (!tbody) return;
+
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-5"><i class="bi bi-boxes d-block fs-2 mb-2 opacity-25"></i>Nenhum produto encontrado.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list.map(p => {
+        const stockVal = p.stock * p.price;
+        const statusCls = p.stock === 0 ? 'bg-danger-subtle text-danger' : p.stock <= 5 ? 'bg-warning-subtle text-warning' : 'bg-success-subtle text-success';
+        const statusLabel = p.stock === 0 ? 'Sem estoque' : p.stock <= 5 ? 'Baixo' : 'OK';
+        return `
+        <tr>
+            <td data-label="Produto"><span class="small fw-semibold">${escHtml(p.name)}</span></td>
+            <td data-label="Categoria"><span class="small text-muted">${escHtml(p.category)}</span></td>
+            <td data-label="Estoque">
+                <span class="stock-edit ${p.stock === 0 ? 'fw-bold text-danger' : p.stock <= 5 ? 'fw-semibold text-warning' : 'fw-semibold'}"
+                      title="Clique para editar inline" onclick="editStockInline('${p._id}', ${p.stock}, this)">
+                    ${p.stock} un.
+                </span>
+            </td>
+            <td data-label="Preço"><span class="small">${fmtMoney(p.price)}</span></td>
+            <td data-label="Valor"><span class="small fw-semibold">${fmtMoney(stockVal)}</span></td>
+            <td data-label="Status"><span class="badge rounded-pill ${statusCls}">${statusLabel}</span></td>
+            <td data-label="Ações">
+                <div class="d-flex gap-1">
+                    <button class="btn btn-sm btn-outline-success" title="Entrada de estoque" onclick="openStockModal('${p._id}','${escAttr(p.name)}',${p.stock},'entrada')">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" title="Saída de estoque" onclick="openStockModal('${p._id}','${escAttr(p.name)}',${p.stock},'saida')">
+                        <i class="bi bi-dash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function exportStockCSV() {
+    const active = stockProducts.filter(p => p.active);
+    if (!active.length) { toast('Nenhum produto para exportar.', 'warning'); return; }
+
+    const totalVal = active.reduce((s, p) => s + p.stock * p.price, 0);
+    const headers  = ['Produto','Categoria','Estoque (un.)','Preço Unitário (R$)','Valor em Estoque (R$)','Status'];
+    const rows     = active.map(p => {
+        const s = p.stock === 0 ? 'Sem estoque' : p.stock <= 5 ? 'Estoque baixo' : 'OK';
+        return [p.name, p.category, p.stock, p.price.toFixed(2).replace('.',','), (p.stock * p.price).toFixed(2).replace('.',','), s];
+    });
+    const summary  = [[], ['TOTAL','','','' , totalVal.toFixed(2).replace('.',','), '']];
+
+    const csv = '﻿' + [headers, ...rows, ...summary]
+        .map(r => r.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(';'))
+        .join('\r\n');
+
+    const today = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-');
+    const blob  = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href = url; a.download = `estoque_helvinho_${today}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast('Estoque exportado!', 'success');
+}
+
+/* --- Modal de ajuste de estoque --- */
+const ENTRADA_REASONS = ['Chegou mercadoria','Devolução de cliente','Correção de contagem','Outros'];
+const SAIDA_REASONS   = ['Venda avulsa','Produto danificado','Produto vencido','Doação','Correção de contagem','Outros'];
+
+function openStockModal(id, name, currentQty, type = 'entrada') {
+    currentStockProductId   = id;
+    currentStockProductName = name;
+    currentStockQty         = currentQty;
+
+    setVal('stock-product-id', id);
+    setVal('stock-qty', '');
+    document.getElementById('stock-error')?.classList.add('d-none');
+    document.getElementById('stock-preview')?.classList.add('d-none');
+
+    setText('stock-modal-title', `Ajustar Estoque — ${name.length > 25 ? name.slice(0,25)+'…' : name}`);
+    setStockType(type);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('stockModal')).show();
+}
+
+function setStockType(type) {
+    setVal('stock-type', type);
+    const reasons = type === 'entrada' ? ENTRADA_REASONS : SAIDA_REASONS;
+    const sel = document.getElementById('stock-reason-select');
+    if (sel) {
+        sel.innerHTML = '<option value="">Selecionar motivo...</option>' +
+            reasons.map(r => `<option value="${escAttr(r)}">${escHtml(r)}</option>`).join('');
+    }
+    document.getElementById('stock-reason')?.classList.add('d-none');
+
+    const btnE = document.getElementById('btn-entrada');
+    const btnS = document.getElementById('btn-saida');
+    if (btnE) {
+        btnE.style.background = type === 'entrada' ? '#e8f5ee' : 'var(--bg)';
+        btnE.style.color      = type === 'entrada' ? '#2d9e5f' : 'var(--muted)';
+        btnE.style.border     = type === 'entrada' ? '2px solid #2d9e5f' : '2px solid var(--border)';
+    }
+    if (btnS) {
+        btnS.style.background = type === 'saida' ? '#fef2f2' : 'var(--bg)';
+        btnS.style.color      = type === 'saida' ? '#dc2626' : 'var(--muted)';
+        btnS.style.border     = type === 'saida' ? '2px solid #dc2626' : '2px solid var(--border)';
+    }
+
+    updateStockPreview();
+}
+
+function onStockReasonChange() {
+    const sel    = document.getElementById('stock-reason-select');
+    const input  = document.getElementById('stock-reason');
+    const isOther = sel?.value === 'Outros';
+    if (input) {
+        input.style.display = isOther ? '' : 'none';
+        if (!isOther) input.value = '';
+    }
+    updateStockPreview();
+}
+
+function updateStockPreview() {
+    const qty  = parseInt(document.getElementById('stock-qty')?.value ?? '0') || 0;
+    const type = document.getElementById('stock-type')?.value ?? 'entrada';
+    if (!qty) { document.getElementById('stock-preview')?.classList.add('d-none'); return; }
+    const delta    = type === 'entrada' ? qty : -qty;
+    const newStock = Math.max(0, currentStockQty + delta);
+    const prevEl   = document.getElementById('stock-preview');
+    if (prevEl) prevEl.className = `alert py-2 small ${type === 'entrada' ? 'alert-success' : 'alert-warning'}`;
+    setText('prev-stock',      currentStockQty + ' un.');
+    setText('new-stock-preview', newStock + ' un.');
+    document.getElementById('stock-preview')?.classList.remove('d-none');
+}
+
+/* Liga o preview ao input de quantidade */
+document.addEventListener('input', e => {
+    if (e.target && e.target.id === 'stock-qty') updateStockPreview();
+});
+
+async function confirmStockAdjust() {
+    const id     = document.getElementById('stock-product-id')?.value ?? '';
+    const type   = document.getElementById('stock-type')?.value ?? 'entrada';
+    const qty    = parseInt(document.getElementById('stock-qty')?.value ?? '0') || 0;
+    const selVal = document.getElementById('stock-reason-select')?.value ?? '';
+    const reason = selVal === 'Outros'
+        ? (document.getElementById('stock-reason')?.value ?? '').trim()
+        : selVal;
+
+    const errEl = document.getElementById('stock-error');
+    if (errEl) errEl.classList.add('d-none');
+
+    if (!qty || qty < 1)  { showStockErr('Informe uma quantidade válida.'); return; }
+    if (!reason)          { showStockErr('Selecione ou descreva o motivo.'); return; }
+
+    const btn = document.getElementById('btn-confirm-stock');
+    setBtnLoading(btn, true, 'Salvando...');
+
+    const res = await api('POST', `/products/${id}/stock`, { type, quantity: qty, reason });
+
+    setBtnLoading(btn, false, '<i class="bi bi-check-lg me-1"></i>Confirmar');
+
+    if (!res?.ok) { showStockErr(res?.data?.error ?? 'Erro ao ajustar estoque.'); return; }
+
+    bootstrap.Modal.getInstance(document.getElementById('stockModal'))?.hide();
+    const delta = type === 'entrada' ? qty : -qty;
+    toast(`Estoque atualizado! ${delta > 0 ? '+' : ''}${delta} un.`, 'success');
+    loadEstoque();
+    loadProducts(); /* atualiza a view de produtos também */
+}
+
+function showStockErr(msg) {
+    const el = document.getElementById('stock-error');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('d-none');
 }
 
 /* ---- Dark mode ---- */

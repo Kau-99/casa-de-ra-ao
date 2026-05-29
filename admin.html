@@ -374,6 +374,9 @@
                 <i class="bi bi-envelope"></i>Mensagens
                 <span class="sb-badge d-none" id="badge-messages"></span>
             </button>
+            <div class="sb-sect">Gestão</div>
+            <button class="sb-btn" id="nav-financeiro" onclick="showView('financeiro')"><i class="bi bi-graph-up-arrow"></i>Financeiro</button>
+            <button class="sb-btn" id="nav-estoque"    onclick="showView('estoque')"><i class="bi bi-boxes"></i>Estoque</button>
             <div class="sb-sect">Loja</div>
             <button class="sb-btn" id="nav-newsletter" onclick="showView('newsletter')"><i class="bi bi-envelope-heart"></i>Newsletter</button>
             <button class="sb-btn" id="nav-activity"   onclick="showView('activity')"><i class="bi bi-clock-history"></i>Atividades</button>
@@ -621,6 +624,149 @@
                             </thead>
                             <tbody id="messages-tbody"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== FINANCEIRO ===== -->
+            <div id="view-financeiro" class="d-none">
+                <!-- Cards de resumo -->
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e8f5ee;color:#2d9e5f"><i class="bi bi-currency-dollar"></i></div>
+                            <div><div class="stat-val" id="fin-total">—</div><div class="stat-label">Faturamento total</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e8f0fe;color:#4285f4"><i class="bi bi-calendar-month"></i></div>
+                            <div><div class="stat-val" id="fin-mes">—</div><div class="stat-label">Faturamento do mês</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fff3e0;color:#ff6b35"><i class="bi bi-hourglass-split"></i></div>
+                            <div><div class="stat-val" id="fin-pendente">—</div><div class="stat-label">Receita pendente</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fce4ec;color:#e53935"><i class="bi bi-receipt"></i></div>
+                            <div><div class="stat-val" id="fin-ticket">—</div><div class="stat-label">Ticket médio</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="row g-3 mb-3">
+                    <div class="col-lg-8">
+                        <div class="c-card">
+                            <div class="c-head">
+                                <h6>Faturamento mensal (últimos 6 meses)</h6>
+                                <button class="btn btn-sm btn-outline-success" onclick="exportFinanceiroCSV()">
+                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar
+                                </button>
+                            </div>
+                            <div class="p-3" style="height:220px;position:relative"><canvas id="fin-monthly-chart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="c-card">
+                            <div class="c-head"><h6>Por forma de pagamento</h6></div>
+                            <div class="p-3" style="height:220px;position:relative"><canvas id="fin-payment-chart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div class="c-card">
+                            <div class="c-head"><h6>Receita por categoria</h6></div>
+                            <div class="p-3" style="height:200px;position:relative"><canvas id="fin-cat-chart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="c-card">
+                            <div class="c-head"><h6>Top 5 produtos mais rentáveis</h6></div>
+                            <div class="table-responsive">
+                                <table class="table c-table mb-0">
+                                    <thead class="table-light"><tr><th>#</th><th>Produto</th><th>Vendas</th><th>Receita</th></tr></thead>
+                                    <tbody id="fin-top-products"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ESTOQUE ===== -->
+            <div id="view-estoque" class="d-none">
+                <!-- Cards de resumo -->
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e8f5ee;color:#2d9e5f"><i class="bi bi-boxes"></i></div>
+                            <div><div class="stat-val" id="st-total">—</div><div class="stat-label">Produtos ativos</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e8f0fe;color:#4285f4"><i class="bi bi-currency-dollar"></i></div>
+                            <div><div class="stat-val" id="st-value">—</div><div class="stat-label">Valor total em estoque</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fff3e0;color:#ff6b35"><i class="bi bi-exclamation-circle"></i></div>
+                            <div><div class="stat-val" id="st-low">—</div><div class="stat-label">Estoque baixo (≤ 5)</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fce4ec;color:#e53935"><i class="bi bi-x-circle"></i></div>
+                            <div><div class="stat-val" id="st-empty">—</div><div class="stat-label">Sem estoque</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-lg-8">
+                        <div class="c-card">
+                            <div class="c-head">
+                                <h6>Posição de estoque</h6>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <select id="st-filter" class="form-select form-select-sm" style="width:140px" onchange="renderStockTable()">
+                                        <option value="">Todos</option>
+                                        <option value="empty">Sem estoque</option>
+                                        <option value="low">Estoque baixo</option>
+                                        <option value="ok">Estoque OK</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-success" onclick="exportStockCSV()">
+                                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover c-table mb-0">
+                                    <thead class="table-light">
+                                        <tr><th>Produto</th><th>Categoria</th><th>Estoque</th><th>Preço</th><th>Valor</th><th>Status</th><th></th></tr>
+                                    </thead>
+                                    <tbody id="stock-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="c-card">
+                            <div class="c-head"><h6>Movimentações recentes</h6></div>
+                            <div class="table-responsive">
+                                <table class="table c-table mb-0" style="font-size:.8rem">
+                                    <thead class="table-light"><tr><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Motivo</th></tr></thead>
+                                    <tbody id="movements-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -923,6 +1069,57 @@
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
                 <button type="button" class="btn btn-success btn-sm fw-semibold d-none" id="btn-replied" onclick="markReplied()">
                     <i class="bi bi-check-circle me-1"></i>Marcar como respondida
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- STOCK ADJUSTMENT MODAL -->
+<div class="modal fade" id="stockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold" id="stock-modal-title">Ajustar Estoque</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="stock-product-id">
+                <div class="d-flex gap-2 mb-4">
+                    <button type="button" class="btn flex-fill fw-semibold" id="btn-entrada"
+                            style="background:#e8f5ee;color:#2d9e5f;border:2px solid #2d9e5f"
+                            onclick="setStockType('entrada')">
+                        <i class="bi bi-plus-circle me-2"></i>Entrada
+                    </button>
+                    <button type="button" class="btn flex-fill fw-semibold" id="btn-saida"
+                            style="background:var(--bg);color:var(--muted);border:2px solid var(--border)"
+                            onclick="setStockType('saida')">
+                        <i class="bi bi-dash-circle me-2"></i>Saída
+                    </button>
+                </div>
+                <input type="hidden" id="stock-type" value="entrada">
+                <div class="mb-3">
+                    <label class="form-label">Quantidade *</label>
+                    <input type="number" id="stock-qty" class="form-control" min="1" placeholder="0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Motivo *</label>
+                    <select id="stock-reason-select" class="form-select mb-2" onchange="onStockReasonChange()">
+                        <option value="">Selecionar motivo...</option>
+                    </select>
+                    <input type="text" id="stock-reason" class="form-control" placeholder="Descreva o motivo..." style="display:none">
+                </div>
+                <div id="stock-preview" class="alert alert-success py-2 small d-none">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Estoque atual: <strong id="prev-stock">—</strong> →
+                    Novo estoque: <strong id="new-stock-preview">—</strong>
+                </div>
+                <div id="stock-error" class="alert alert-danger py-2 small d-none"></div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success fw-semibold px-4" id="btn-confirm-stock" onclick="confirmStockAdjust()">
+                    <i class="bi bi-check-lg me-1"></i>Confirmar
                 </button>
             </div>
         </div>
