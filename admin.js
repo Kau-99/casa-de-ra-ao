@@ -2,15 +2,16 @@ const API = (location.hostname === 'localhost' || location.hostname === '127.0.0
     ? 'http://localhost:3000/api'
     : 'https://helvinho-racoes-api.onrender.com/api';
 
-let token            = localStorage.getItem('helvinhoAdminToken');
-let products         = [];
-let orders           = [];
-let messages         = [];
-let editingProductId = null;
-let viewingMessageId = null;
+/* ---- State ---- */
+let token             = localStorage.getItem('helvinhoAdminToken');
+let products          = [];
+let orders            = [];
+let messages          = [];
+let editingProductId  = null;
+let viewingMessageId  = null;
 let currentDateFilter = 'all';
 let lastOrderTotal    = parseInt(localStorage.getItem('adminLastOrderCount') ?? '0', 10);
-let salesChartInstance = null;
+let salesChartInst    = null;
 
 /* ---- Init ---- */
 document.addEventListener('DOMContentLoaded', () => {
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (token) showApp();
 });
 
-/* ---- Mobile sidebar ---- */
+/* ---- Sidebar mobile ---- */
 function openSidebar()  {
     document.getElementById('sidebar')?.classList.add('open');
     document.getElementById('sb-overlay')?.classList.add('show');
@@ -44,7 +45,7 @@ async function api(method, path, body) {
         if (res.status === 401) { logout(); return null; }
         return { ok: res.ok, status: res.status, data };
     } catch {
-        toast('Sem conexão com a API. Verifique se o servidor está rodando.', 'danger');
+        toast('Sem conexão com a API.', 'danger');
         return null;
     }
 }
@@ -56,21 +57,14 @@ async function login() {
     const errEl    = document.getElementById('login-error');
     const btn      = document.getElementById('btn-login');
 
-    if (!email || !password) {
-        show(errEl, 'Preencha e-mail e senha.');
-        return;
-    }
+    if (!email || !password) { show(errEl, 'Preencha e-mail e senha.'); return; }
     hide(errEl);
     setBtnLoading(btn, true, 'Entrando...');
 
     const res = await api('POST', '/auth/login', { email, password });
-
     setBtnLoading(btn, false, '<i class="bi bi-box-arrow-in-right me-2"></i>Entrar');
 
-    if (!res?.ok) {
-        show(errEl, res?.data?.error ?? 'Credenciais inválidas.');
-        return;
-    }
+    if (!res?.ok) { show(errEl, res?.data?.error ?? 'Credenciais inválidas.'); return; }
 
     token = res.data.token;
     localStorage.setItem('helvinhoAdminToken', token);
@@ -83,16 +77,10 @@ async function register() {
     const errEl    = document.getElementById('reg-error');
 
     hide(errEl);
-    if (!email || password.length < 8) {
-        show(errEl, 'Preencha e-mail e senha (mínimo 8 caracteres).');
-        return;
-    }
+    if (!email || password.length < 8) { show(errEl, 'Preencha e-mail e senha (mín. 8 caracteres).'); return; }
 
     const res = await api('POST', '/auth/register', { email, password });
-    if (!res?.ok) {
-        show(errEl, res?.data?.error ?? 'Erro ao criar conta.');
-        return;
-    }
+    if (!res?.ok) { show(errEl, res?.data?.error ?? 'Erro ao criar conta.'); return; }
 
     token = res.data.token;
     localStorage.setItem('helvinhoAdminToken', token);
@@ -118,11 +106,29 @@ async function showApp() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-app').classList.remove('d-none');
     setText('topbar-user', res.data.email ?? '');
+
     showView('dashboard');
     startPolling();
 }
 
-/* ---- Polling — notifica quando chega pedido novo ---- */
+/* ---- Router ---- */
+function showView(view) {
+    closeSidebar();
+    ['dashboard','products','orders','messages','settings'].forEach(v => {
+        document.getElementById('view-' + v)?.classList.toggle('d-none', v !== view);
+        document.getElementById('nav-'  + v)?.classList.toggle('active', v === view);
+    });
+    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', settings:'Configurações' };
+    setText('topbar-title', titles[view] ?? '');
+
+    if (view === 'dashboard') loadDashboard();
+    if (view === 'products')  loadProducts();
+    if (view === 'orders')    loadOrders();
+    if (view === 'messages')  loadMessages();
+    if (view === 'settings')  loadSettings();
+}
+
+/* ---- Polling — detecta pedidos novos ---- */
 function startPolling() {
     setInterval(async () => {
         if (document.hidden) return;
@@ -131,48 +137,30 @@ function startPolling() {
         const total = res.data.pagination?.total ?? 0;
         if (lastOrderTotal > 0 && total > lastOrderTotal) {
             const n = total - lastOrderTotal;
-            playNotificationSound();
+            playSound();
             toast(`🛍️ ${n} novo${n > 1 ? 's' : ''} pedido${n > 1 ? 's' : ''}!`, 'success');
-            const navBtn = document.getElementById('nav-orders');
-            navBtn?.classList.add('nav-flash');
-            setTimeout(() => navBtn?.classList.remove('nav-flash'), 2500);
+            const nb = document.getElementById('nav-orders');
+            nb?.classList.add('nav-flash');
+            setTimeout(() => nb?.classList.remove('nav-flash'), 2500);
         }
         lastOrderTotal = total;
         localStorage.setItem('adminLastOrderCount', String(total));
     }, 30000);
 }
 
-function playNotificationSound() {
+function playSound() {
     try {
         const ctx  = new (window.AudioContext || window.webkitAudioContext)();
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+        osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, ctx.currentTime);
         osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.setValueAtTime(0.22, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.45);
-    } catch { /* AudioContext indisponível no navegador */ }
-}
-
-/* ---- Router ---- */
-function showView(view) {
-    closeSidebar();
-    ['dashboard','products','orders','messages'].forEach(v => {
-        document.getElementById('view-' + v)?.classList.toggle('d-none', v !== view);
-        document.getElementById('nav-'  + v)?.classList.toggle('active', v === view);
-    });
-    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens' };
-    setText('topbar-title', titles[view] ?? '');
-
-    if (view === 'dashboard') loadDashboard();
-    if (view === 'products')  loadProducts();
-    if (view === 'orders')    loadOrders();
-    if (view === 'messages')  loadMessages();
+        osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.45);
+    } catch {}
 }
 
 /* ---- Stats ---- */
@@ -199,69 +187,6 @@ async function loadStats() {
     }
 }
 
-/* ---- Gráfico de vendas ---- */
-async function loadSalesChart(days) {
-    document.getElementById('chart-7d')?.classList.toggle('active',  days === 7);
-    document.getElementById('chart-30d')?.classList.toggle('active', days === 30);
-
-    const res = await api('GET', '/orders?limit=500');
-    if (!res?.ok) return;
-    const allOrders = res.data.orders ?? [];
-
-    const labels = [], data = [];
-    for (let i = days - 1; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        labels.push(d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
-        const start = new Date(d); start.setHours(0,0,0,0);
-        const end   = new Date(d); end.setHours(23,59,59,999);
-        data.push(
-            allOrders
-                .filter(o => o.status !== 'cancelled' && new Date(o.createdAt) >= start && new Date(o.createdAt) <= end)
-                .reduce((s, o) => s + o.total, 0)
-        );
-    }
-
-    const canvas = document.getElementById('sales-chart');
-    if (!canvas) return;
-    if (salesChartInstance) { salesChartInstance.destroy(); salesChartInstance = null; }
-
-    salesChartInstance = new Chart(canvas, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Faturamento',
-                data,
-                borderColor: '#2d9e5f',
-                backgroundColor: 'rgba(45,158,95,0.08)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#2d9e5f',
-                pointRadius: 3,
-            }],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: { label: ctx => fmtMoney(ctx.raw) },
-                },
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: v => 'R$ ' + Number(v).toFixed(0), font: { size: 11 } },
-                    grid: { color: '#f3f4f6' },
-                },
-                x: { ticks: { font: { size: 11 } }, grid: { display: false } },
-            },
-        },
-    });
-}
-
 /* ---- Dashboard ---- */
 async function loadDashboard() {
     await loadStats();
@@ -281,10 +206,10 @@ async function loadDashboard() {
             ? '<tr><td colspan="4" class="text-center text-muted py-4 small">Nenhum pedido ainda.</td></tr>'
             : list.map(o => `
                 <tr style="cursor:pointer" onclick="showView('orders')">
-                    <td><span class="font-monospace fw-semibold small">#${o._id.slice(-6).toUpperCase()}</span></td>
-                    <td><strong class="small">${fmtMoney(o.total)}</strong></td>
-                    <td><span class="small text-muted">${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}</span></td>
-                    <td>${statusBadge(o.status)}</td>
+                    <td data-label="Pedido"><span class="font-monospace fw-semibold small">#${o._id.slice(-6).toUpperCase()}</span></td>
+                    <td data-label="Total"><strong class="small">${fmtMoney(o.total)}</strong></td>
+                    <td data-label="Tipo"><span class="small text-muted">${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}</span></td>
+                    <td data-label="Status">${statusBadge(o.status)}</td>
                 </tr>`).join('');
     }
 
@@ -295,10 +220,51 @@ async function loadDashboard() {
             ? '<tr><td colspan="2" class="text-center text-muted py-4 small">Nenhuma mensagem ainda.</td></tr>'
             : list.map(m => `
                 <tr style="cursor:pointer" onclick="showView('messages')">
-                    <td><span class="small fw-semibold">${escHtml(m.name)}</span></td>
-                    <td><span class="badge rounded-pill ${m.replied ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}">${m.replied ? 'Respondida' : 'Pendente'}</span></td>
+                    <td data-label="Nome"><span class="small fw-semibold">${escHtml(m.name)}</span></td>
+                    <td data-label="Status"><span class="badge rounded-pill ${m.replied ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}">${m.replied ? 'Respondida' : 'Pendente'}</span></td>
                 </tr>`).join('');
     }
+}
+
+/* ---- Sales Chart ---- */
+async function loadSalesChart(days) {
+    document.getElementById('chart-7d')?.classList.toggle('active',  days === 7);
+    document.getElementById('chart-30d')?.classList.toggle('active', days === 30);
+
+    const res = await api('GET', '/orders?limit=500');
+    if (!res?.ok) return;
+    const all = res.data.orders ?? [];
+
+    const labels = [], data = [];
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+        const s = new Date(d); s.setHours(0,0,0,0);
+        const e = new Date(d); e.setHours(23,59,59,999);
+        data.push(all.filter(o => o.status !== 'cancelled' && new Date(o.createdAt) >= s && new Date(o.createdAt) <= e)
+                     .reduce((acc, o) => acc + o.total, 0));
+    }
+
+    const canvas = document.getElementById('sales-chart');
+    if (!canvas) return;
+    if (salesChartInst) { salesChartInst.destroy(); salesChartInst = null; }
+    salesChartInst = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets: [{
+            label: 'Faturamento', data,
+            borderColor: '#2d9e5f', backgroundColor: 'rgba(45,158,95,.08)',
+            tension: 0.4, fill: true,
+            pointBackgroundColor: '#2d9e5f', pointRadius: 3,
+        }]},
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw) } } },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+                x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+            },
+        },
+    });
 }
 
 /* ---- Products ---- */
@@ -311,28 +277,26 @@ async function loadProducts() {
 }
 
 function renderProducts() {
-    /* Alerta de estoque crítico */
-    const zeroStock = products.filter(p => p.active && p.stock === 0);
-    const lowStock  = products.filter(p => p.active && p.stock > 0 && p.stock <= 5);
-    const banner    = document.getElementById('stock-banner');
-    const bannerTxt = document.getElementById('stock-banner-text');
-    if (banner && bannerTxt) {
-        if (zeroStock.length || lowStock.length) {
-            const parts = [];
-            if (zeroStock.length) parts.push(`${zeroStock.length} produto${zeroStock.length > 1 ? 's' : ''} sem estoque`);
-            if (lowStock.length)  parts.push(`${lowStock.length} com estoque baixo (≤ 5)`);
-            bannerTxt.textContent = '⚠️ ' + parts.join(' e ') + '. Verifique seus produtos.';
-            banner.classList.remove('d-none');
-        } else {
-            banner.classList.add('d-none');
-        }
-    }
-
-    const q   = (document.getElementById('product-search')?.value ?? '').toLowerCase().trim();
-    const cat = document.getElementById('product-cat')?.value ?? '';
-    let list  = products;
+    const q    = (document.getElementById('product-search')?.value ?? '').toLowerCase().trim();
+    const cat  = document.getElementById('product-cat')?.value ?? '';
+    let   list = products;
     if (q)   list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
     if (cat) list = list.filter(p => p.category === cat);
+
+    /* Alerta de estoque */
+    const zero = products.filter(p => p.active && p.stock === 0);
+    const low  = products.filter(p => p.active && p.stock > 0 && p.stock <= 5);
+    const banner = document.getElementById('stock-banner');
+    const btext  = document.getElementById('stock-banner-text');
+    if (banner && btext) {
+        if (zero.length || low.length) {
+            const parts = [];
+            if (zero.length) parts.push(`${zero.length} produto${zero.length > 1 ? 's' : ''} sem estoque`);
+            if (low.length)  parts.push(`${low.length} com estoque baixo (≤ 5)`);
+            btext.textContent = parts.join(' e ') + '. Verifique seus produtos.';
+            banner.classList.remove('d-none');
+        } else { banner.classList.add('d-none'); }
+    }
 
     const tbody = document.getElementById('products-tbody');
     if (!tbody) return;
@@ -344,29 +308,28 @@ function renderProducts() {
 
     tbody.innerHTML = list.map(p => `
         <tr>
-            <td><img src="${escAttr(p.img)}" class="p-thumb" alt="" loading="lazy" onerror="this.style.opacity='0'"></td>
-            <td>
+            <td data-label=""><img src="${escAttr(p.img)}" class="p-thumb" alt="" loading="lazy" onerror="this.style.opacity='0'"></td>
+            <td data-label="Nome">
                 <div class="fw-semibold">${escHtml(p.name)}</div>
-                ${p.badge ? `<span class="badge bg-secondary-subtle text-secondary rounded-pill mt-1" style="font-size:.67rem">${escHtml(p.badge)}</span>` : ''}
+                ${p.badge ? `<span class="badge bg-secondary-subtle text-secondary rounded-pill mt-1" style="font-size:.65rem">${escHtml(p.badge)}</span>` : ''}
             </td>
-            <td><span class="text-muted small">${escHtml(p.category)}</span></td>
-            <td>
+            <td data-label="Categoria"><span class="text-muted small">${escHtml(p.category)}</span></td>
+            <td data-label="Preço">
                 <span class="fw-semibold">${fmtMoney(p.price)}</span>
                 ${p.originalPrice ? `<br><span class="text-decoration-line-through text-muted small">${fmtMoney(p.originalPrice)}</span>` : ''}
             </td>
-            <td>
+            <td data-label="Estoque">
                 <span class="stock-edit ${p.stock === 0 ? 'fw-bold text-danger' : p.stock <= 5 ? 'fw-semibold text-warning' : 'text-muted'}"
-                      title="Clique para editar"
-                      onclick="editStockInline('${p._id}', ${p.stock}, this)">
+                      title="Clique para editar" onclick="editStockInline('${p._id}', ${p.stock}, this)">
                     ${p.stock} un.
                 </span>
             </td>
-            <td>
+            <td data-label="Status">
                 <span class="badge rounded-pill ${p.active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}">
                     ${p.active ? 'Ativo' : 'Inativo'}
                 </span>
             </td>
-            <td>
+            <td data-label="Ações">
                 <div class="d-flex gap-1">
                     <button class="btn btn-sm btn-outline-secondary" title="Editar" onclick="openProductModal('${p._id}')"><i class="bi bi-pencil"></i></button>
                     <button class="btn btn-sm ${p.active ? 'btn-outline-danger' : 'btn-outline-success'}" title="${p.active ? 'Desativar' : 'Ativar'}" onclick="toggleActive('${p._id}',${p.active})">
@@ -379,7 +342,7 @@ function renderProducts() {
 
 function openProductModal(id) {
     editingProductId = id;
-    const errEl   = document.getElementById('product-errors');
+    const errEl  = document.getElementById('product-errors');
     const preview = document.getElementById('img-preview');
     if (errEl)   { errEl.classList.add('d-none'); errEl.querySelector('ul').innerHTML = ''; }
     if (preview) preview.style.display = 'none';
@@ -393,15 +356,13 @@ function openProductModal(id) {
         setVal('p-category', p.category); setVal('p-badge', p.badge ?? '');
         setVal('p-rating', p.rating); setVal('p-reviews', p.reviews);
         setVal('p-stock', p.stock); setVal('p-img', p.img); setVal('p-desc', p.desc);
-        const act = document.getElementById('p-active');
-        if (act) act.checked = p.active;
+        const act = document.getElementById('p-active'); if (act) act.checked = p.active;
         setText('desc-count', p.desc.length);
         if (preview && p.img) { preview.src = p.img; preview.style.display = 'block'; }
     } else {
         ['p-name','p-price','p-original-price','p-badge','p-img','p-desc'].forEach(id => setVal(id, ''));
         setVal('p-category', ''); setVal('p-rating', ''); setVal('p-reviews', '0'); setVal('p-stock', '0');
-        const act = document.getElementById('p-active');
-        if (act) act.checked = true;
+        const act = document.getElementById('p-active'); if (act) act.checked = true;
         setText('desc-count', '0');
     }
     bootstrap.Modal.getOrCreateInstance(document.getElementById('productModal')).show();
@@ -430,7 +391,6 @@ function validateProductForm() {
 async function saveProduct() {
     const errContainer = document.getElementById('product-errors');
     const errList      = errContainer?.querySelector('ul');
-
     if (errContainer) errContainer.classList.add('d-none');
 
     const clientErrs = validateProductForm();
@@ -457,13 +417,11 @@ async function saveProduct() {
 
     const btn = document.getElementById('btn-save');
     setBtnLoading(btn, true, 'Salvando...');
-
     const res = await api(
         editingProductId ? 'PUT'  : 'POST',
         editingProductId ? '/products/' + editingProductId : '/products',
         body
     );
-
     setBtnLoading(btn, false, '<i class="bi bi-check-lg me-1"></i>Salvar produto');
 
     if (!res?.ok) {
@@ -475,20 +433,25 @@ async function saveProduct() {
 
     bootstrap.Modal.getInstance(document.getElementById('productModal'))?.hide();
     toast(editingProductId ? 'Produto atualizado!' : 'Produto criado!', 'success');
-    loadProducts();
-    loadStats();
+    loadProducts(); loadStats();
+}
+
+async function toggleActive(id, isActive) {
+    const ok = await showConfirm(
+        isActive ? 'Desativar este produto?' : 'Ativar este produto?',
+        isActive ? 'Ele ficará invisível no site.' : 'Ele voltará a aparecer no site.'
+    );
+    if (!ok) return;
+    const res = await api('PUT', '/products/' + id, { active: !isActive });
+    if (res?.ok) { toast(isActive ? 'Produto desativado.' : 'Produto ativado!', 'success'); loadProducts(); loadStats(); }
+    else toast(res?.data?.error ?? 'Erro ao atualizar.', 'danger');
 }
 
 function editStockInline(id, currentStock, spanEl) {
     const input = document.createElement('input');
-    input.type      = 'number';
-    input.value     = currentStock;
-    input.min       = '0';
+    input.type = 'number'; input.value = currentStock; input.min = '0';
     input.className = 'stock-input form-control form-control-sm d-inline-block';
-
-    spanEl.replaceWith(input);
-    input.focus();
-    input.select();
+    spanEl.replaceWith(input); input.focus(); input.select();
 
     async function save() {
         const newStock = Math.max(0, parseInt(input.value) || 0);
@@ -502,35 +465,15 @@ function editStockInline(id, currentStock, spanEl) {
         }
         renderProducts();
     }
-
-    input.addEventListener('blur',    save);
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter')  input.blur();
-        if (e.key === 'Escape') renderProducts();
-    });
-}
-
-async function toggleActive(id, isActive) {
-    const ok = await showConfirm(
-        isActive ? 'Desativar este produto?' : 'Ativar este produto?',
-        isActive ? 'Ele ficará invisível no site.' : 'Ele voltará a aparecer no site.'
-    );
-    if (!ok) return;
-    const res = await api('PUT', '/products/' + id, { active: !isActive });
-    if (res?.ok) {
-        toast(isActive ? 'Produto desativado.' : 'Produto ativado!', 'success');
-        loadProducts(); loadStats();
-    } else {
-        toast(res?.data?.error ?? 'Erro ao atualizar produto.', 'danger');
-    }
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') renderProducts(); });
 }
 
 function previewImg() {
     const url = document.getElementById('p-img')?.value ?? '';
     const el  = document.getElementById('img-preview');
     if (!el) return;
-    if (url) { el.src = url; el.style.display = 'block'; }
-    else       el.style.display = 'none';
+    if (url) { el.src = url; el.style.display = 'block'; } else el.style.display = 'none';
 }
 
 function updateDescCount() {
@@ -539,7 +482,7 @@ function updateDescCount() {
     if (el) { el.textContent = len; el.className = len > 500 ? 'text-danger fw-bold' : ''; }
 }
 
-/* ---- Filtro de data ---- */
+/* ---- Date filter ---- */
 function setDateFilter(period) {
     currentDateFilter = period;
     ['all','today','week','month'].forEach(p => {
@@ -550,11 +493,10 @@ function setDateFilter(period) {
 
 function applyDateFilter(list) {
     if (currentDateFilter === 'all') return list;
-    const now   = new Date();
     const start = new Date();
-    if (currentDateFilter === 'today') { start.setHours(0,0,0,0); }
-    if (currentDateFilter === 'week')  { start.setDate(now.getDate() - 7); }
-    if (currentDateFilter === 'month') { start.setDate(now.getDate() - 30); }
+    if (currentDateFilter === 'today') start.setHours(0,0,0,0);
+    if (currentDateFilter === 'week')  start.setDate(start.getDate() - 7);
+    if (currentDateFilter === 'month') start.setDate(start.getDate() - 30);
     return list.filter(o => new Date(o.createdAt) >= start);
 }
 
@@ -568,10 +510,11 @@ async function loadOrders() {
 }
 
 function renderOrders() {
-    const filter    = document.getElementById('order-filter')?.value ?? '';
-    let   list      = filter ? orders.filter(o => o.status === filter) : orders;
+    const filter = document.getElementById('order-filter')?.value ?? '';
+    let   list   = filter ? orders.filter(o => o.status === filter) : orders;
     list = applyDateFilter(list);
-    const tbody  = document.getElementById('orders-tbody');
+
+    const tbody = document.getElementById('orders-tbody');
     if (!tbody) return;
 
     if (!list.length) {
@@ -581,20 +524,19 @@ function renderOrders() {
 
     tbody.innerHTML = list.map(o => `
         <tr style="cursor:pointer" onclick="openOrderDetail('${o._id}')">
-            <td><span class="font-monospace fw-semibold small">#${o._id.slice(-6).toUpperCase()}</span></td>
-            <td><span class="text-muted small">${fmtDate(o.createdAt)}</span></td>
-            <td><span class="small">${o.items.length} item${o.items.length !== 1 ? 's' : ''}</span></td>
-            <td><strong>${fmtMoney(o.total)}</strong></td>
-            <td>
+            <td data-label="Pedido"><span class="font-monospace fw-semibold small">#${o._id.slice(-6).toUpperCase()}</span></td>
+            <td data-label="Data"><span class="text-muted small">${fmtDate(o.createdAt)}</span></td>
+            <td data-label="Itens"><span class="small">${o.items.length} item${o.items.length !== 1 ? 's' : ''}</span></td>
+            <td data-label="Total"><strong>${fmtMoney(o.total)}</strong></td>
+            <td data-label="Tipo">
                 <span class="badge rounded-pill ${o.deliveryType === 'delivery' ? 'bg-primary-subtle text-primary' : 'bg-secondary-subtle text-secondary'}">
-                    <i class="bi bi-${o.deliveryType === 'delivery' ? 'truck' : 'bag'} me-1"></i>
-                    ${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}
+                    <i class="bi bi-${o.deliveryType === 'delivery' ? 'truck' : 'bag'} me-1"></i>${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}
                 </span>
             </td>
-            <td><span class="small">${escHtml(o.payment)}</span></td>
-            <td>${statusBadge(o.status)}</td>
-            <td onclick="event.stopPropagation()">
-                <button class="btn btn-sm btn-outline-secondary" title="Alterar status" onclick="openOrderModal('${o._id}','${o.status}')">
+            <td data-label="Pagamento"><span class="small">${escHtml(o.payment)}${paymentBadge(o)}</span></td>
+            <td data-label="Status">${statusBadge(o.status)}</td>
+            <td data-label="Ações" onclick="event.stopPropagation()">
+                <button class="btn btn-sm btn-outline-secondary" onclick="openOrderModal('${o._id}','${o.status}')">
                     <i class="bi bi-pencil"></i>
                 </button>
             </td>
@@ -608,57 +550,66 @@ function openOrderDetail(id) {
     setText('order-detail-title', `Pedido #${o._id.slice(-6).toUpperCase()}`);
 
     const btnChange = document.getElementById('btn-change-status');
-    if (btnChange) {
-        btnChange.onclick = () => {
-            bootstrap.Modal.getInstance(document.getElementById('orderDetailModal'))?.hide();
-            setTimeout(() => openOrderModal(o._id, o.status), 300);
-        };
-    }
+    if (btnChange) btnChange.onclick = () => {
+        bootstrap.Modal.getInstance(document.getElementById('orderDetailModal'))?.hide();
+        setTimeout(() => openOrderModal(o._id, o.status), 320);
+    };
 
     const btnWA = document.getElementById('btn-whatsapp-order');
     if (btnWA) btnWA.onclick = () => openOrderWhatsApp(o);
 
     const body = document.getElementById('order-detail-body');
-    if (body) {
-        const items = o.items.map(i => `
-            <div class="d-flex justify-content-between py-2 border-bottom">
-                <div><span class="small fw-semibold">${escHtml(i.name)}</span><span class="text-muted small"> × ${i.qty}</span></div>
-                <span class="small fw-semibold">${fmtMoney(i.price * i.qty)}</span>
-            </div>`).join('');
+    if (!body) return;
 
-        const history = (o.statusHistory ?? []);
-        const timelineHtml = history.length
-            ? `<div class="mt-3">
-                <p class="small fw-semibold mb-2">Histórico</p>
-                <div class="timeline">
-                    ${history.map((h, idx) => `
-                        <div class="timeline-item">
-                            <div class="tl-dot ${idx < history.length - 1 ? 'old' : ''}"></div>
-                            <span class="small fw-semibold">${statusBadge(h.status)}</span>
-                            <span class="text-muted small ms-2">${fmtDate(h.at)}</span>
-                        </div>`).join('')}
-                </div>
-               </div>`
-            : '';
+    const items = o.items.map(i => `
+        <div class="d-flex justify-content-between py-2 border-bottom">
+            <div><span class="small fw-semibold">${escHtml(i.name)}</span><span class="text-muted small"> × ${i.qty}</span></div>
+            <span class="small fw-semibold">${fmtMoney(i.price * i.qty)}</span>
+        </div>`).join('');
 
-        body.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-muted small">${fmtDate(o.createdAt)}</span>
-                ${statusBadge(o.status)}
+    const history = o.statusHistory ?? [];
+    const timeline = history.length ? `
+        <div class="mt-3">
+            <p class="small fw-semibold mb-2 text-muted">Histórico</p>
+            <div class="timeline">
+                ${history.map((h, i) => `
+                    <div class="tl-item">
+                        <div class="tl-dot ${i < history.length - 1 ? 'old' : ''}"></div>
+                        ${statusBadge(h.status)}
+                        <span class="text-muted small ms-2">${fmtDate(h.at)}</span>
+                    </div>`).join('')}
             </div>
-            ${items}
-            <div class="d-flex justify-content-between fw-bold pt-3 mb-3 border-top">
-                <span>Total</span><span>${fmtMoney(o.total)}</span>
-            </div>
-            <div class="row g-2 text-muted small mb-1">
-                <div class="col-6"><strong>Entrega:</strong> ${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}</div>
-                <div class="col-6"><strong>Pagamento:</strong> ${escHtml(o.payment)}${paymentDetailsBadge(o)}</div>
-                ${o.address ? `<div class="col-12"><strong>Endereço:</strong> ${escHtml(o.address)}</div>` : ''}
-                ${paymentDetailsRow(o)}
-                ${o.notes   ? `<div class="col-12"><strong>Obs:</strong> ${escHtml(o.notes)}</div>` : ''}
-            </div>
-            ${timelineHtml}`;
+        </div>` : '';
+
+    const pd = o.paymentDetails;
+    let paymentRow = '';
+    if (pd) {
+        if (o.payment === 'Cartão' && pd.cardType)
+            paymentRow = `<div class="col-12"><strong>Cartão:</strong> ${pd.cardType === 'credito' ? 'Crédito' : 'Débito'} — entregador deve levar maquininha</div>`;
+        else if (o.payment === 'Dinheiro' && pd.cashAmount) {
+            const chg = Math.max(0, pd.cashAmount - o.total);
+            paymentRow = `<div class="col-12"><strong>Dinheiro:</strong> cliente tem ${fmtMoney(pd.cashAmount)} — troco ${chg > 0 ? fmtMoney(chg) : 'não necessário'}</div>`;
+        } else if (o.payment === 'Pix')
+            paymentRow = `<div class="col-12 text-warning-emphasis fw-semibold small"><i class="bi bi-qr-code me-1"></i>Verificar recebimento do PIX antes de entregar</div>`;
     }
+
+    body.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted small">${fmtDate(o.createdAt)}</span>
+            ${statusBadge(o.status)}
+        </div>
+        ${items}
+        <div class="d-flex justify-content-between fw-bold pt-3 mb-3 border-top">
+            <span>Total</span><span>${fmtMoney(o.total)}</span>
+        </div>
+        <div class="row g-2 text-muted small mb-1">
+            <div class="col-6"><strong>Entrega:</strong> ${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}</div>
+            <div class="col-6"><strong>Pagamento:</strong> ${escHtml(o.payment)}</div>
+            ${o.address ? `<div class="col-12"><strong>Endereço:</strong> ${escHtml(o.address)}</div>` : ''}
+            ${paymentRow}
+            ${o.notes ? `<div class="col-12"><strong>Obs:</strong> ${escHtml(o.notes)}</div>` : ''}
+        </div>
+        ${timeline}`;
 
     bootstrap.Modal.getOrCreateInstance(document.getElementById('orderDetailModal')).show();
 }
@@ -674,30 +625,22 @@ async function saveOrderStatus() {
     const id     = document.getElementById('order-edit-id')?.value ?? '';
     const status = document.getElementById('order-status-select')?.value ?? '';
     if (!id || !status) return;
-
     const res = await api('PATCH', '/orders/' + id + '/status', { status });
     if (res?.ok) {
         bootstrap.Modal.getInstance(document.getElementById('orderModal'))?.hide();
         toast('Status atualizado!', 'success');
         loadOrders(); loadStats();
-    } else {
-        toast(res?.data?.error ?? 'Erro ao atualizar status.', 'danger');
-    }
+    } else toast(res?.data?.error ?? 'Erro.', 'danger');
 }
 
 function openOrderWhatsApp(o) {
-    const statusLabels = { pending:'Recebido', confirmed:'Confirmado', preparing:'Em preparo', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' };
-    const lines = o.items.map(i => `▪ ${i.qty}x ${i.name} — ${fmtMoney(i.price * i.qty)}`).join('\n');
-    const msg =
-        `🐾 *Helvinho Rações*\n\n` +
-        `Pedido *#${o._id.slice(-6).toUpperCase()}* — ${statusLabels[o.status] ?? o.status}\n\n` +
-        `*Itens:*\n${lines}\n\n` +
-        `*Total: ${fmtMoney(o.total)}*\n` +
-        `━━━━━━━━━━━━━\n` +
-        (o.deliveryType === 'delivery'
-            ? `🛵 Entrega: ${o.address ?? 'endereço não informado'}`
-            : `🛍️ Retirada na loja`) +
-        `\n💳 Pagamento: ${o.payment}`;
+    const labels = { pending:'Recebido', confirmed:'Confirmado', preparing:'Em preparo', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' };
+    const lines  = o.items.map(i => `▪ ${i.qty}x ${i.name} — ${fmtMoney(i.price * i.qty)}`).join('\n');
+    const msg    =
+        `🐾 *Helvinho Rações*\n\nPedido *#${o._id.slice(-6).toUpperCase()}* — ${labels[o.status] ?? o.status}\n\n` +
+        `*Itens:*\n${lines}\n\n*Total: ${fmtMoney(o.total)}*\n━━━━━━━━━━━━━\n` +
+        (o.deliveryType === 'delivery' ? `🛵 Entrega: ${o.address ?? ''}` : `🛍️ Retirada na loja`) +
+        `\n💳 ${o.payment}`;
     window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
@@ -717,23 +660,23 @@ function renderMessages() {
     if (!tbody) return;
 
     if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5"><i class="bi bi-inbox d-block fs-2 mb-2 opacity-25"></i>Nenhuma mensagem encontrada.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-5"><i class="bi bi-inbox d-block fs-2 mb-2 opacity-25"></i>Nenhuma mensagem.</td></tr>';
         return;
     }
 
     tbody.innerHTML = list.map(m => `
         <tr>
-            <td><span class="text-muted small">${fmtDate(m.createdAt)}</span></td>
-            <td><span class="fw-semibold small">${escHtml(m.name)}</span></td>
-            <td><a href="mailto:${escAttr(m.email)}" class="small" onclick="event.stopPropagation()">${escHtml(m.email)}</a></td>
-            <td><span class="text-muted small">${escHtml(m.message.slice(0,65))}${m.message.length > 65 ? '…' : ''}</span></td>
-            <td>
+            <td data-label="Data"><span class="text-muted small">${fmtDate(m.createdAt)}</span></td>
+            <td data-label="Nome"><span class="fw-semibold small">${escHtml(m.name)}</span></td>
+            <td data-label="E-mail"><a href="mailto:${escAttr(m.email)}" class="small" onclick="event.stopPropagation()">${escHtml(m.email)}</a></td>
+            <td data-label="Mensagem"><span class="text-muted small">${escHtml(m.message.slice(0,65))}${m.message.length > 65 ? '…' : ''}</span></td>
+            <td data-label="Status">
                 <span class="badge rounded-pill ${m.replied ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}">
                     ${m.replied ? 'Respondida' : 'Pendente'}
                 </span>
             </td>
-            <td>
-                <button class="btn btn-sm btn-outline-secondary" title="Ver" onclick="openMessage('${m._id}')">
+            <td data-label="Ações">
+                <button class="btn btn-sm btn-outline-secondary" onclick="openMessage('${m._id}')">
                     <i class="bi bi-eye"></i>
                 </button>
             </td>
@@ -742,12 +685,10 @@ function renderMessages() {
 
 function openMessage(id) {
     viewingMessageId = id;
-    const m = messages.find(x => x._id === id);
+    const m    = messages.find(x => x._id === id);
     if (!m) return;
-
-    const body  = document.getElementById('message-detail');
-    const btnEl = document.getElementById('btn-replied');
-
+    const body = document.getElementById('message-detail');
+    const btn  = document.getElementById('btn-replied');
     if (body) {
         body.innerHTML = `
             <div class="mb-1 small"><strong>De:</strong> ${escHtml(m.name)}</div>
@@ -755,8 +696,7 @@ function openMessage(id) {
             <div class="mb-3 text-muted small">${fmtDate(m.createdAt)}</div>
             <div class="bg-light rounded-3 p-3 small" style="white-space:pre-wrap;line-height:1.6">${escHtml(m.message)}</div>`;
     }
-
-    if (btnEl) btnEl.classList.toggle('d-none', !!m.replied);
+    if (btn) btn.classList.toggle('d-none', !!m.replied);
     bootstrap.Modal.getOrCreateInstance(document.getElementById('messageModal')).show();
 }
 
@@ -767,9 +707,41 @@ async function markReplied() {
         bootstrap.Modal.getInstance(document.getElementById('messageModal'))?.hide();
         toast('Marcada como respondida!', 'success');
         loadMessages(); loadStats();
-    } else {
-        toast(res?.data?.error ?? 'Erro ao atualizar.', 'danger');
-    }
+    } else toast(res?.data?.error ?? 'Erro.', 'danger');
+}
+
+/* ---- Settings ---- */
+async function loadSettings() {
+    const res = await api('GET', '/settings');
+    if (!res?.ok) return;
+    const s = res.data;
+    setVal('s-name',     s.storeName    ?? '');
+    setVal('s-address',  s.storeAddress ?? '');
+    setVal('s-city',     s.storeCity    ?? '');
+    setVal('s-hours',    s.storeHours   ?? '');
+    setVal('s-pix-key',  s.pixKey       ?? '');
+    setVal('s-pix-type', s.pixKeyType   ?? 'aleatoria');
+    setVal('s-whatsapp', s.whatsapp     ?? '');
+}
+
+async function saveSettings() {
+    const body = {
+        storeName:    (document.getElementById('s-name')?.value     ?? '').trim(),
+        storeAddress: (document.getElementById('s-address')?.value  ?? '').trim(),
+        storeCity:    (document.getElementById('s-city')?.value     ?? '').trim(),
+        storeHours:   (document.getElementById('s-hours')?.value    ?? '').trim(),
+        pixKey:       (document.getElementById('s-pix-key')?.value  ?? '').trim(),
+        pixKeyType:   document.getElementById('s-pix-type')?.value  ?? 'aleatoria',
+        whatsapp:     (document.getElementById('s-whatsapp')?.value ?? '').replace(/\D/g, ''),
+    };
+
+    const btn = document.getElementById('btn-save-settings');
+    setBtnLoading(btn, true, 'Salvando...');
+    const res = await api('PUT', '/settings', body);
+    setBtnLoading(btn, false, '<i class="bi bi-check-lg me-1"></i>Salvar configurações');
+
+    if (res?.ok) toast('Configurações salvas!', 'success');
+    else toast(res?.data?.error ?? 'Erro ao salvar.', 'danger');
 }
 
 /* ---- Confirm dialog ---- */
@@ -778,19 +750,17 @@ function showConfirm(message, subtext) {
         const modal  = document.getElementById('confirmModal');
         const btnYes = document.getElementById('confirm-yes');
         if (!modal || !btnYes) { resolve(true); return; }
-
         setText('confirm-text', message);
         setText('confirm-sub',  subtext ?? '');
 
         const bs = bootstrap.Modal.getOrCreateInstance(modal);
         let resolved = false;
 
-        function done(result) {
-            if (resolved) return;
-            resolved = true;
+        function done(val) {
+            if (resolved) return; resolved = true;
             btnYes.removeEventListener('click', onYes);
             modal.removeEventListener('hidden.bs.modal', onHide);
-            resolve(result);
+            resolve(val);
         }
         function onYes()  { done(true);  bs.hide(); }
         function onHide() { done(false); }
@@ -799,32 +769,6 @@ function showConfirm(message, subtext) {
         modal.addEventListener('hidden.bs.modal', onHide, { once: true });
         bs.show();
     });
-}
-
-/* ---- Detalhes de pagamento ---- */
-function paymentDetailsBadge(o) {
-    const pd = o.paymentDetails;
-    if (!pd) return '';
-    if (o.payment === 'Cartão' && pd.cardType) {
-        return ` <span class="badge bg-primary-subtle text-primary rounded-pill" style="font-size:.7rem">${pd.cardType === 'credito' ? 'Crédito' : 'Débito'}</span>`;
-    }
-    return '';
-}
-
-function paymentDetailsRow(o) {
-    const pd = o.paymentDetails;
-    if (!pd || !o.payment) return '';
-    if (o.payment === 'Dinheiro' && pd.cashAmount) {
-        const change = Math.max(0, pd.cashAmount - o.total);
-        return `<div class="col-12"><strong>Dinheiro:</strong> tem ${fmtMoney(pd.cashAmount)} — troco ${change > 0 ? fmtMoney(change) : 'não necessário'}</div>`;
-    }
-    if (o.payment === 'Cartão') {
-        return `<div class="col-12"><strong>Maquininha:</strong> o entregador deve levar</div>`;
-    }
-    if (o.payment === 'Pix') {
-        return `<div class="col-12"><strong>PIX:</strong> verificar recebimento antes de entregar</div>`;
-    }
-    return '';
 }
 
 /* ---- Utils ---- */
@@ -847,21 +791,7 @@ function tableLoading(tbodyId, cols, rows = 5) {
 function setBtnLoading(btn, loading, html) {
     if (!btn) return;
     btn.disabled = loading;
-    btn.innerHTML = loading
-        ? '<span class="spinner-border spinner-border-sm me-2"></span>' + html
-        : html;
-}
-
-function fmtMoney(v) {
-    return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function fmtDate(str) {
-    if (!str) return '—';
-    return new Date(str).toLocaleString('pt-BR', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-    });
+    btn.innerHTML = loading ? '<span class="spinner-border spinner-border-sm me-2"></span>' + html : html;
 }
 
 function statusBadge(status) {
@@ -874,7 +804,15 @@ function statusBadge(status) {
         cancelled: ['danger',  'Cancelado'],
     };
     const [color, label] = map[status] ?? ['secondary', status ?? '—'];
-    return `<span class="badge rounded-pill bg-${color}-subtle text-${color}" style="font-size:.74rem">${label}</span>`;
+    return `<span class="badge rounded-pill bg-${color}-subtle text-${color}" style="font-size:.73rem">${label}</span>`;
+}
+
+function paymentBadge(o) {
+    const pd = o.paymentDetails;
+    if (!pd) return '';
+    if (o.payment === 'Cartão' && pd.cardType)
+        return ` <span class="badge bg-primary-subtle text-primary rounded-pill" style="font-size:.67rem">${pd.cardType === 'credito' ? 'Crédito' : 'Débito'}</span>`;
+    return '';
 }
 
 function setBadge(id, count) {
@@ -882,6 +820,12 @@ function setBadge(id, count) {
     if (!el) return;
     el.textContent = count;
     el.classList.toggle('d-none', count === 0);
+}
+
+function fmtMoney(v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+function fmtDate(str) {
+    if (!str) return '—';
+    return new Date(str).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
 function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = String(val ?? ''); }

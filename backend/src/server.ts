@@ -6,9 +6,11 @@ import rateLimit from 'express-rate-limit';
 
 import { connectDatabase } from './config/database';
 import productsRouter from './routes/products';
-import ordersRouter  from './routes/orders';
-import contactRouter from './routes/contact';
-import authRouter    from './routes/auth';
+import ordersRouter   from './routes/orders';
+import contactRouter  from './routes/contact';
+import authRouter     from './routes/auth';
+import settingsRouter from './routes/settings';
+import { Settings }   from './models';
 import { errorHandler, notFound } from './middleware/errorHandler';
 
 const app = express();
@@ -53,15 +55,20 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-/* ---- Configurações públicas da loja (PIX, WhatsApp, endereço) ---- */
-app.get('/api/config', (_req, res) => {
-  res.json({
-    pixKey:    process.env.STORE_PIX_KEY   ?? '',
-    storeName: process.env.STORE_NAME      ?? 'Helvinho Rações',
-    storeCity: process.env.STORE_CITY      ?? 'São Paulo',
-    whatsapp:  process.env.STORE_WHATSAPP  ?? '5511999999999',
-    address:   process.env.STORE_ADDRESS   ?? '',
-  });
+/* ---- Config pública — DB tem prioridade sobre env vars ---- */
+app.get('/api/config', async (_req, res) => {
+  try {
+    const s = await Settings.findOne({});
+    res.json({
+      pixKey:     s?.pixKey       || process.env.STORE_PIX_KEY  || '',
+      pixKeyType: s?.pixKeyType   || 'aleatoria',
+      storeName:  s?.storeName    || process.env.STORE_NAME     || 'Helvinho Rações',
+      storeCity:  s?.storeCity    || process.env.STORE_CITY     || 'São Paulo',
+      storeHours: s?.storeHours   || 'Seg–Sex: 8h–20h | Sáb: 9h–18h',
+      whatsapp:   s?.whatsapp     || process.env.STORE_WHATSAPP || '5511999999999',
+      address:    s?.storeAddress || process.env.STORE_ADDRESS  || '',
+    });
+  } catch { res.json({}); }
 });
 
 /* ---- Rotas ---- */
@@ -69,6 +76,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/orders',   ordersRouter);
 app.use('/api/contact',  contactRouter);
 app.use('/api/auth',     authRouter);
+app.use('/api/settings', settingsRouter);
 
 /* ---- Erros ---- */
 app.use(notFound);

@@ -203,3 +203,29 @@ adminSchema.set('toJSON', {
 });
 
 export const Admin = model<IAdmin>('Admin', adminSchema);
+
+/* ============================================================
+   Settings — documento único com configurações da loja
+============================================================ */
+
+export interface ISettings extends Document {
+  storeName:    string;
+  storeAddress: string;
+  storeCity:    string;
+  storeHours:   string;
+  pixKey:       string;
+  pixKeyType:   string;
+  whatsapp:     string;
+}
+
+const settingsSchema = new Schema<ISettings>({
+  storeName:    { type: String, default: 'Helvinho Rações' },
+  storeAddress: { type: String, default: '' },
+  storeCity:    { type: String, default: 'São Paulo' },
+  storeHours:   { type: String, default: 'Seg–Sex: 8h–20h | Sáb: 9h–18h' },
+  pixKey:       { type: String, default: '' },
+  pixKeyType:   { type: String, default: 'aleatoria', enum: ['cpf','cnpj','email','celular','aleatoria'] },
+  whatsapp:     { type: String, default: '5511999999999' },
+}, { timestamps: true });
+
+export const Settings = model<ISettings>('Settings', settingsSchema);

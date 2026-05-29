@@ -10,195 +10,231 @@
         :root {
             --primary:    #2d9e5f;
             --primary-dk: #1e7a47;
+            --primary-lt: #e8f5ee;
+            --accent:     #ff6b35;
             --sidebar-bg: #1a3d2b;
             --sidebar-w:  260px;
             --bg:         #f0f2f5;
+            --card-bg:    #ffffff;
+            --border:     #f0f0f0;
+            --text:       #111827;
+            --muted:      #6b7280;
+            --radius:     12px;
         }
-        body { background: var(--bg); font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; }
 
-        /* ---- Login ---- */
+        *, *::before, *::after { box-sizing: border-box; }
+        body { background: var(--bg); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; color: var(--text); -webkit-font-smoothing: antialiased; }
+
+        /* ======== LOGIN ======== */
         #login-screen {
-            min-height: 100vh; display: flex;
-            align-items: center; justify-content: center;
-            background: linear-gradient(135deg, #0f2318 0%, #1a3d2b 40%, #2d9e5f 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #0f2318 0%, #1a3d2b 45%, #2d9e5f 100%);
+            padding: 16px;
         }
         .login-card {
             width: 100%; max-width: 420px; background: #fff;
             border-radius: 20px; padding: 44px 40px;
             box-shadow: 0 32px 80px rgba(0,0,0,0.3);
         }
+        @media (max-width: 480px) { .login-card { padding: 32px 24px; } }
 
-        /* ---- Sidebar ---- */
+        /* ======== SIDEBAR ======== */
         #sidebar {
-            position: fixed; top: 0; left: 0;
-            width: var(--sidebar-w); height: 100vh;
-            background: var(--sidebar-bg);
+            position: fixed; inset: 0 auto 0 0;
+            width: var(--sidebar-w); background: var(--sidebar-bg);
             display: flex; flex-direction: column;
-            z-index: 200; overflow-y: auto;
-            transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+            z-index: 300; overflow-y: auto; overflow-x: hidden;
+            transition: transform .28s cubic-bezier(.4,0,.2,1);
+            scrollbar-width: none;
         }
-        .sb-brand { padding: 22px 22px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+        #sidebar::-webkit-scrollbar { display: none; }
+        .sb-brand { padding: 20px 20px 14px; border-bottom: 1px solid rgba(255,255,255,.07); }
         .sb-logo  {
-            width: 38px; height: 38px; border-radius: 10px;
+            width: 36px; height: 36px; border-radius: 9px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dk));
             display: inline-flex; align-items: center; justify-content: center;
-            color: #fff; font-size: 1.1rem; margin-bottom: 8px;
+            color: #fff; font-size: 1.05rem; margin-bottom: 6px;
         }
-        .sb-name { color: #fff; font-weight: 700; font-size: 0.93rem; margin: 0; line-height: 1.2; }
-        .sb-sub  { color: rgba(255,255,255,0.35); font-size: 0.69rem; }
-        .sb-section {
-            padding: 14px 22px 5px;
-            color: rgba(255,255,255,0.25); font-size: 0.66rem;
-            font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+        .sb-name { color: #fff; font-weight: 700; font-size: .9rem; margin: 0; line-height: 1.2; }
+        .sb-sub  { color: rgba(255,255,255,.32); font-size: .67rem; letter-spacing: .02em; }
+        .sb-sect {
+            padding: 14px 20px 4px;
+            color: rgba(255,255,255,.22); font-size: .64rem;
+            font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
         }
         .sb-nav  { flex: 1; padding-bottom: 8px; }
         .sb-btn  {
             display: flex; align-items: center; gap: 10px;
-            padding: 10px 22px;
-            color: rgba(255,255,255,0.58); font-size: 0.875rem; font-weight: 500;
-            cursor: pointer; border: none; background: none;
-            width: 100%; text-align: left;
-            transition: background .15s, color .15s;
-            position: relative;
+            padding: 10px 20px; width: 100%; border: none;
+            background: none; color: rgba(255,255,255,.55);
+            font-size: .855rem; font-weight: 500; text-align: left;
+            cursor: pointer; transition: background .15s, color .15s;
+            position: relative; border-radius: 0;
         }
-        .sb-btn:hover  { color: #fff; background: rgba(255,255,255,0.06); }
-        .sb-btn.active { color: #fff; background: rgba(45,158,95,.3); }
+        .sb-btn:hover  { color: #fff; background: rgba(255,255,255,.06); }
+        .sb-btn.active { color: #fff; background: rgba(45,158,95,.28); }
         .sb-btn.active::before {
-            content: ''; position: absolute; left: 0; top: 50%;
-            transform: translateY(-50%);
-            width: 3px; height: 60%; background: var(--primary);
-            border-radius: 0 3px 3px 0;
+            content: ''; position: absolute; left: 0; top: 20%; height: 60%;
+            width: 3px; background: var(--primary); border-radius: 0 3px 3px 0;
         }
-        .sb-btn i { font-size: 1rem; width: 20px; flex-shrink: 0; }
-        .sb-badge {
-            margin-left: auto; background: #ff6b35; color: #fff;
-            font-size: .67rem; font-weight: 700;
-            padding: 2px 6px; border-radius: 20px; min-width: 18px;
-            text-align: center; line-height: 1.7;
+        .sb-btn i    { font-size: .95rem; width: 18px; flex-shrink: 0; }
+        .sb-badge    {
+            margin-left: auto; background: var(--accent); color: #fff;
+            font-size: .65rem; font-weight: 700; padding: 2px 6px;
+            border-radius: 20px; min-width: 18px; text-align: center; line-height: 1.7;
         }
-        .sb-footer { padding: 8px 0 14px; border-top: 1px solid rgba(255,255,255,0.07); }
+        .sb-footer { padding: 8px 0 14px; border-top: 1px solid rgba(255,255,255,.07); }
 
-        /* ---- Main ---- */
-        #admin-app { margin-left: var(--sidebar-w); min-height: 100vh; }
+        /* ======== MAIN ======== */
+        #admin-app   { margin-left: var(--sidebar-w); min-height: 100vh; display: flex; flex-direction: column; }
         #topbar {
-            background: #fff; height: 56px; padding: 0 26px;
-            border-bottom: 1px solid #e5e7eb;
+            position: sticky; top: 0; z-index: 100;
+            background: #fff; height: 56px; padding: 0 24px;
+            border-bottom: 1px solid var(--border);
             display: flex; align-items: center; justify-content: space-between;
-            position: sticky; top: 0; z-index: 50;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 4px rgba(0,0,0,.05);
+            gap: 12px;
         }
-        #content { padding: 22px 26px; }
+        .topbar-left  { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        #topbar-title { font-weight: 700; font-size: .95rem; margin: 0; white-space: nowrap; }
+        #content { padding: 22px 24px; flex: 1; }
 
-        /* ---- Stat cards ---- */
+        /* ======== STAT CARDS ======== */
         .stat-card {
-            background: #fff; border-radius: 14px; padding: 18px 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,.07), 0 4px 12px rgba(0,0,0,.04);
+            background: var(--card-bg); border-radius: var(--radius); padding: 18px 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
             display: flex; align-items: center; gap: 14px;
             transition: transform .15s, box-shadow .15s;
         }
         .stat-card.clickable { cursor: pointer; }
-        .stat-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+        .stat-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.1); }
         .stat-icon {
             width: 46px; height: 46px; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.25rem; flex-shrink: 0;
+            font-size: 1.2rem; flex-shrink: 0;
         }
-        .stat-value { font-size: 1.55rem; font-weight: 700; line-height: 1; color: #111827; }
-        .stat-label { font-size: .77rem; color: #9ca3af; margin-top: 2px; }
+        .stat-val   { font-size: 1.55rem; font-weight: 700; line-height: 1; color: var(--text); }
+        .stat-label { font-size: .74rem; color: var(--muted); margin-top: 2px; }
 
-        /* ---- Content card ---- */
-        .c-card { background: #fff; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.07); overflow: hidden; }
+        /* ======== CONTENT CARD ======== */
+        .c-card { background: var(--card-bg); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; }
         .c-head {
-            padding: 14px 20px; border-bottom: 1px solid #f3f4f6;
+            padding: 14px 20px; border-bottom: 1px solid var(--border);
             display: flex; align-items: center; justify-content: space-between;
             flex-wrap: wrap; gap: 10px;
         }
+        .c-head h6 { font-weight: 700; font-size: .88rem; margin: 0; }
 
-        /* ---- Table ---- */
-        .table { margin: 0; }
-        .table th {
-            font-size: .71rem; text-transform: uppercase; letter-spacing: .07em;
-            color: #9ca3af; font-weight: 600;
-            border-bottom: 1px solid #f0f0f0 !important;
+        /* ======== TABLE + RESPONSIVE CARDS ======== */
+        .table       { margin: 0; }
+        .table th    {
+            font-size: .68rem; text-transform: uppercase; letter-spacing: .07em;
+            color: var(--muted); font-weight: 600;
+            border-bottom: 1px solid var(--border) !important;
             padding: 10px 16px; white-space: nowrap;
         }
-        .table td { vertical-align: middle; font-size: .875rem; padding: 10px 16px; border-color: #f9fafb; }
+        .table td    { vertical-align: middle; font-size: .855rem; padding: 10px 16px; border-color: #fafafa; }
         .table-hover tbody tr:hover { background: #fafbfd; }
-        .p-thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 9px; background: #f3f4f6; }
+        .p-thumb     { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; background: #f3f4f6; }
 
-        /* ---- Skeleton ---- */
-        @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+        @media (max-width: 640px) {
+            .c-table thead { display: none; }
+            .c-table tbody { display: block; }
+            .c-table tbody tr {
+                display: block; background: var(--card-bg);
+                border: 1px solid var(--border); border-radius: var(--radius);
+                margin: 0 0 10px; padding: 12px 14px;
+            }
+            .c-table tbody tr:last-child { margin-bottom: 0; }
+            .c-table td {
+                display: flex; justify-content: space-between; align-items: center;
+                padding: 5px 0; border: none; font-size: .84rem;
+                border-bottom: 1px solid #f9fafb;
+            }
+            .c-table td:last-child { border-bottom: none; }
+            .c-table td[data-label]::before {
+                content: attr(data-label);
+                font-weight: 600; font-size: .68rem; color: var(--muted);
+                text-transform: uppercase; letter-spacing: .06em;
+                min-width: 80px; flex-shrink: 0; margin-right: 8px;
+            }
+            .c-table td:empty, .c-table td .p-thumb { display: none; }
+            .c-table .d-flex.gap-1 { justify-content: flex-end; }
+        }
+
+        /* ======== SKELETON ======== */
+        @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
         .sk {
             display: block; border-radius: 5px; height: 14px;
             background: linear-gradient(90deg,#e8ecef 25%,#f5f7fa 50%,#e8ecef 75%);
             background-size: 800px 100%; animation: shimmer 1.3s ease-in-out infinite;
         }
-        .sk-sm { width: 60%; } .sk-xs { width: 40%; } .sk-img { height: 42px; width: 42px; border-radius: 9px; }
+        .sk-sm { width: 60%; } .sk-xs { width: 35%; }
 
-        /* ---- Form ---- */
-        .form-label { font-size: .82rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
-        .form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45,158,95,.15); }
+        /* ======== FORM ======== */
+        .form-label  { font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+        .form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45,158,95,.14); }
         #img-preview { width: 100%; height: 130px; object-fit: cover; border-radius: 10px; display: none; margin-bottom: 8px; }
 
-        /* ---- Validation ---- */
+        /* ======== ERRORS ======== */
         .v-errors { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 14px; }
-        .v-errors li { font-size: .82rem; color: #dc2626; margin-bottom: 2px; }
+        .v-errors li { font-size: .8rem; color: #dc2626; margin-bottom: 2px; }
 
-        /* ---- Mobile ---- */
-        #sb-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 150; }
+        /* ======== TIMELINE ======== */
+        .timeline { position: relative; padding-left: 22px; }
+        .timeline::before { content:''; position:absolute; left:7px; top:4px; bottom:4px; width:2px; background:#e5e7eb; }
+        .tl-item { position: relative; padding-bottom: 14px; }
+        .tl-item:last-child { padding-bottom: 0; }
+        .tl-dot { position:absolute; left:-18px; top:4px; width:12px; height:12px; border-radius:50%; background:var(--primary); border:2px solid #fff; box-shadow:0 0 0 2px var(--primary); }
+        .tl-dot.old { background:#d1d5db; box-shadow:0 0 0 2px #d1d5db; }
+
+        /* ======== NAV FLASH ======== */
+        @keyframes navflash { 0%,100%{background:rgba(45,158,95,0)} 50%{background:rgba(45,158,95,.4)} }
+        .nav-flash { animation: navflash .5s ease 4; }
+
+        /* ======== STOCK ======== */
+        .stock-edit  { cursor:pointer; border-bottom:1px dashed #9ca3af; transition:color .15s, border-color .15s; }
+        .stock-edit:hover { color:var(--primary); border-color:var(--primary); }
+        .stock-input { width:70px; padding:2px 6px; font-size:.84rem; }
+        .stock-banner { background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 16px; display:flex; align-items:center; gap:10px; }
+
+        /* ======== SETTINGS ======== */
+        .settings-section { background: var(--card-bg); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 16px; }
+        .settings-section-head { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+        .settings-section-head h6 { font-weight: 700; font-size: .88rem; margin: 0; }
+        .settings-section-body { padding: 20px; }
+        .settings-section-head small { color: var(--muted); font-size: .75rem; }
+
+        /* ======== MOBILE ======== */
+        #sb-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; }
         #hamburger  { display: none; }
-        @media (max-width: 768px) {
+
+        @media (max-width: 900px) {
             #sidebar { transform: translateX(-100%); }
             #sidebar.open { transform: translateX(0); }
             #sb-overlay.show { display: block; }
             #admin-app { margin-left: 0; }
             #hamburger { display: flex; }
-            #content { padding: 14px; }
-            #topbar  { padding: 0 14px; }
+        }
+        @media (max-width: 640px) {
+            #content { padding: 14px 12px; }
+            #topbar  { padding: 0 12px; }
         }
         @media (prefers-reduced-motion: reduce) {
             .sk { animation: none; }
             .stat-card.clickable:hover { transform: none; }
         }
-
-        /* ---- Timeline de status ---- */
-        .timeline { position: relative; padding-left: 22px; }
-        .timeline::before { content:''; position:absolute; left:7px; top:4px; bottom:4px; width:2px; background:#e5e7eb; }
-        .timeline-item { position:relative; padding-bottom:14px; }
-        .timeline-item:last-child { padding-bottom:0; }
-        .tl-dot {
-            position:absolute; left:-18px; top:4px;
-            width:12px; height:12px; border-radius:50%;
-            background:#2d9e5f; border:2px solid #fff;
-            box-shadow:0 0 0 2px #2d9e5f;
-        }
-        .tl-dot.old { background:#d1d5db; box-shadow:0 0 0 2px #d1d5db; }
-
-        /* ---- Flash notificação ---- */
-        @keyframes navflash { 0%,100%{background:rgba(45,158,95,0)} 50%{background:rgba(45,158,95,.4)} }
-        .nav-flash { animation: navflash .5s ease 4; }
-
-        /* ---- Inline stock edit ---- */
-        .stock-edit { cursor:pointer; border-bottom:1px dashed #9ca3af; }
-        .stock-edit:hover { border-bottom-color:#2d9e5f; color:#2d9e5f; }
-        .stock-input { width:70px; padding:2px 6px; font-size:.85rem; }
-
-        /* ---- Stock alert banner ---- */
-        .stock-banner {
-            background:#fef2f2; border:1px solid #fecaca;
-            border-radius:10px; padding:12px 16px;
-            display:flex; align-items:center; gap:10px;
-        }
     </style>
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- ============================================================ LOGIN -->
 <div id="login-screen">
     <div class="login-card">
         <div class="text-center mb-5">
-            <div style="width:54px;height:54px;background:linear-gradient(135deg,#2d9e5f,#1a3d2b);border-radius:15px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
-                <i class="bi bi-shield-lock-fill text-white" style="font-size:1.5rem"></i>
+            <div style="width:52px;height:52px;background:linear-gradient(135deg,#2d9e5f,#1a3d2b);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+                <i class="bi bi-shield-lock-fill text-white" style="font-size:1.4rem"></i>
             </div>
             <h4 class="fw-bold mb-1">Helvinho Rações</h4>
             <p class="text-muted small mb-0">Painel Administrativo</p>
@@ -240,7 +276,7 @@
     </div>
 </div>
 
-<!-- APP -->
+<!-- ============================================================ APP -->
 <div id="sb-overlay" onclick="closeSidebar()"></div>
 <div id="admin-app" class="d-none">
 
@@ -251,7 +287,7 @@
             <span class="sb-sub">Painel Administrativo</span>
         </div>
         <div class="sb-nav">
-            <div class="sb-section">Menu</div>
+            <div class="sb-sect">Principal</div>
             <button class="sb-btn active" id="nav-dashboard" onclick="showView('dashboard')"><i class="bi bi-grid-1x2"></i>Dashboard</button>
             <button class="sb-btn" id="nav-products"  onclick="showView('products')"><i class="bi bi-box-seam"></i>Produtos</button>
             <button class="sb-btn" id="nav-orders"    onclick="showView('orders')">
@@ -262,81 +298,81 @@
                 <i class="bi bi-envelope"></i>Mensagens
                 <span class="sb-badge d-none" id="badge-messages"></span>
             </button>
+            <div class="sb-sect">Loja</div>
+            <button class="sb-btn" id="nav-settings"  onclick="showView('settings')"><i class="bi bi-gear"></i>Configurações</button>
         </div>
         <div class="sb-footer">
-            <button class="sb-btn" onclick="logout()" style="color:rgba(255,255,255,.4)">
-                <i class="bi bi-box-arrow-left"></i>Sair
-            </button>
+            <button class="sb-btn" onclick="logout()" style="color:rgba(255,255,255,.4)"><i class="bi bi-box-arrow-left"></i>Sair</button>
         </div>
     </nav>
 
-    <div>
+    <div style="flex:1;min-width:0">
         <div id="topbar">
-            <div class="d-flex align-items-center gap-3">
-                <button id="hamburger" class="btn btn-sm btn-outline-secondary p-1 lh-1" onclick="openSidebar()">
-                    <i class="bi bi-list fs-5"></i>
+            <div class="topbar-left">
+                <button id="hamburger" class="btn btn-sm btn-outline-secondary p-1 lh-1" onclick="openSidebar()" aria-label="Menu">
+                    <i class="bi bi-list" style="font-size:1.15rem"></i>
                 </button>
-                <h6 class="fw-bold mb-0" id="topbar-title">Dashboard</h6>
+                <h6 id="topbar-title">Dashboard</h6>
             </div>
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-person-circle text-muted"></i>
-                <span class="text-muted small" id="topbar-user"></span>
+            <div class="topbar-right">
+                <span class="text-muted small d-none d-sm-inline" id="topbar-user"></span>
+                <div class="rounded-circle bg-success-subtle d-flex align-items-center justify-content-center" style="width:32px;height:32px;flex-shrink:0">
+                    <i class="bi bi-person text-success"></i>
+                </div>
             </div>
         </div>
 
         <div id="content">
 
-            <!-- DASHBOARD -->
+            <!-- ===== DASHBOARD ===== -->
             <div id="view-dashboard">
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-xl-3">
                         <div class="stat-card clickable" onclick="showView('products')">
                             <div class="stat-icon" style="background:#e8f5ee;color:#2d9e5f"><i class="bi bi-box-seam-fill"></i></div>
-                            <div><div class="stat-value" id="stat-products">—</div><div class="stat-label">Produtos ativos</div></div>
+                            <div><div class="stat-val" id="stat-products">—</div><div class="stat-label">Produtos ativos</div></div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
                         <div class="stat-card clickable" onclick="showView('orders')">
                             <div class="stat-icon" style="background:#fff3e0;color:#ff6b35"><i class="bi bi-bag-check-fill"></i></div>
-                            <div><div class="stat-value" id="stat-orders">—</div><div class="stat-label">Pedidos pendentes</div></div>
+                            <div><div class="stat-val" id="stat-orders">—</div><div class="stat-label">Pedidos pendentes</div></div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
                         <div class="stat-card clickable" onclick="showView('messages')">
                             <div class="stat-icon" style="background:#e8f0fe;color:#4285f4"><i class="bi bi-envelope-fill"></i></div>
-                            <div><div class="stat-value" id="stat-messages">—</div><div class="stat-label">Mensagens novas</div></div>
+                            <div><div class="stat-val" id="stat-messages">—</div><div class="stat-label">Mensagens novas</div></div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
                         <div class="stat-card">
                             <div class="stat-icon" style="background:#fce4ec;color:#e53935"><i class="bi bi-exclamation-triangle-fill"></i></div>
-                            <div><div class="stat-value" id="stat-lowstock">—</div><div class="stat-label">Estoque baixo</div></div>
+                            <div><div class="stat-val" id="stat-lowstock">—</div><div class="stat-label">Estoque baixo</div></div>
                         </div>
                     </div>
                 </div>
-                <!-- Gráfico de vendas -->
+
                 <div class="c-card mb-3">
                     <div class="c-head">
-                        <h6 class="fw-bold mb-0">Faturamento</h6>
+                        <h6>Faturamento</h6>
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-outline-secondary active" id="chart-7d"  onclick="loadSalesChart(7)">7 dias</button>
                             <button class="btn btn-outline-secondary"        id="chart-30d" onclick="loadSalesChart(30)">30 dias</button>
                         </div>
                     </div>
-                    <div class="p-3" style="position:relative;height:180px">
-                        <canvas id="sales-chart"></canvas>
-                    </div>
+                    <div class="p-3" style="position:relative;height:180px"><canvas id="sales-chart"></canvas></div>
                 </div>
 
                 <div class="row g-3">
                     <div class="col-lg-7">
                         <div class="c-card">
                             <div class="c-head">
-                                <h6 class="fw-bold mb-0">Pedidos recentes</h6>
+                                <h6>Pedidos recentes</h6>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="showView('orders')">Ver todos</button>
                             </div>
                             <div class="table-responsive">
-                                <table class="table mb-0">
+                                <table class="table c-table mb-0">
                                     <thead class="table-light"><tr><th>Pedido</th><th>Total</th><th>Tipo</th><th>Status</th></tr></thead>
                                     <tbody id="dash-orders"></tbody>
                                 </table>
@@ -346,11 +382,11 @@
                     <div class="col-lg-5">
                         <div class="c-card">
                             <div class="c-head">
-                                <h6 class="fw-bold mb-0">Mensagens recentes</h6>
+                                <h6>Mensagens recentes</h6>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="showView('messages')">Ver todas</button>
                             </div>
                             <div class="table-responsive">
-                                <table class="table mb-0">
+                                <table class="table c-table mb-0">
                                     <thead class="table-light"><tr><th>Nome</th><th>Status</th></tr></thead>
                                     <tbody id="dash-messages"></tbody>
                                 </table>
@@ -360,7 +396,7 @@
                 </div>
             </div>
 
-            <!-- PRODUCTS -->
+            <!-- ===== PRODUCTS ===== -->
             <div id="view-products" class="d-none">
                 <div id="stock-banner" class="stock-banner mb-3 d-none">
                     <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
@@ -368,25 +404,25 @@
                 </div>
                 <div class="c-card">
                     <div class="c-head">
-                        <h6 class="fw-bold mb-0">Todos os produtos</h6>
+                        <h6>Todos os produtos</h6>
                         <div class="d-flex gap-2 flex-wrap align-items-center">
-                            <input type="text" id="product-search" class="form-control form-control-sm" placeholder="Buscar..." style="width:160px" oninput="renderProducts()">
-                            <select id="product-cat" class="form-select form-select-sm" style="width:145px" onchange="renderProducts()">
-                                <option value="">Todas categorias</option>
+                            <input type="text" id="product-search" class="form-control form-control-sm" placeholder="Buscar..." style="width:150px" oninput="renderProducts()">
+                            <select id="product-cat" class="form-select form-select-sm" style="width:140px" onchange="renderProducts()">
+                                <option value="">Todas</option>
                                 <option value="Ração">Ração</option>
                                 <option value="Acessórios">Acessórios</option>
                                 <option value="Higiene">Higiene</option>
                                 <option value="Medicamentos">Medicamentos</option>
                             </select>
                             <button class="btn btn-success btn-sm fw-semibold" onclick="openProductModal(null)">
-                                <i class="bi bi-plus-lg me-1"></i>Novo produto
+                                <i class="bi bi-plus-lg me-1"></i>Novo
                             </button>
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover c-table mb-0">
                             <thead class="table-light">
-                                <tr><th style="width:52px"></th><th>Nome</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Status</th><th style="width:90px"></th></tr>
+                                <tr><th style="width:48px"></th><th>Nome</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Status</th><th style="width:88px"></th></tr>
                             </thead>
                             <tbody id="products-tbody"></tbody>
                         </table>
@@ -394,31 +430,31 @@
                 </div>
             </div>
 
-            <!-- ORDERS -->
+            <!-- ===== ORDERS ===== -->
             <div id="view-orders" class="d-none">
                 <div class="c-card">
                     <div class="c-head">
-                        <h6 class="fw-bold mb-0">Pedidos</h6>
+                        <h6>Pedidos</h6>
                         <div class="d-flex gap-2 flex-wrap align-items-center">
-                            <div class="btn-group btn-group-sm" id="date-filters">
+                            <div class="btn-group btn-group-sm">
                                 <button class="btn btn-outline-secondary active" id="df-all"   onclick="setDateFilter('all')">Todos</button>
                                 <button class="btn btn-outline-secondary"        id="df-today" onclick="setDateFilter('today')">Hoje</button>
-                                <button class="btn btn-outline-secondary"        id="df-week"  onclick="setDateFilter('week')">7 dias</button>
-                                <button class="btn btn-outline-secondary"        id="df-month" onclick="setDateFilter('month')">30 dias</button>
+                                <button class="btn btn-outline-secondary"        id="df-week"  onclick="setDateFilter('week')">7d</button>
+                                <button class="btn btn-outline-secondary"        id="df-month" onclick="setDateFilter('month')">30d</button>
                             </div>
-                        <select id="order-filter" class="form-select form-select-sm" style="width:165px" onchange="renderOrders()">
-                            <option value="">Todos os status</option>
-                            <option value="pending">Pendentes</option>
-                            <option value="confirmed">Confirmados</option>
-                            <option value="preparing">Preparando</option>
-                            <option value="ready">Prontos</option>
-                            <option value="delivered">Entregues</option>
-                            <option value="cancelled">Cancelados</option>
-                        </select>
+                            <select id="order-filter" class="form-select form-select-sm" style="width:145px" onchange="renderOrders()">
+                                <option value="">Todos status</option>
+                                <option value="pending">Pendentes</option>
+                                <option value="confirmed">Confirmados</option>
+                                <option value="preparing">Preparando</option>
+                                <option value="ready">Prontos</option>
+                                <option value="delivered">Entregues</option>
+                                <option value="cancelled">Cancelados</option>
+                            </select>
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover c-table mb-0">
                             <thead class="table-light">
                                 <tr><th>Pedido</th><th>Data</th><th>Itens</th><th>Total</th><th>Tipo</th><th>Pagamento</th><th>Status</th><th></th></tr>
                             </thead>
@@ -428,24 +464,105 @@
                 </div>
             </div>
 
-            <!-- MESSAGES -->
+            <!-- ===== MESSAGES ===== -->
             <div id="view-messages" class="d-none">
                 <div class="c-card">
                     <div class="c-head">
-                        <h6 class="fw-bold mb-0">Mensagens de contato</h6>
+                        <h6>Mensagens de contato</h6>
                         <div class="form-check form-switch mb-0">
                             <input class="form-check-input" type="checkbox" id="unread-only" onchange="renderMessages()">
-                            <label class="form-check-label small fw-semibold" for="unread-only">Apenas não respondidas</label>
+                            <label class="form-check-label small fw-semibold" for="unread-only">Não respondidas</label>
                         </div>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover c-table mb-0">
                             <thead class="table-light">
                                 <tr><th>Data</th><th>Nome</th><th>E-mail</th><th>Mensagem</th><th>Status</th><th></th></tr>
                             </thead>
                             <tbody id="messages-tbody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- ===== SETTINGS ===== -->
+            <div id="view-settings" class="d-none">
+                <div class="settings-section">
+                    <div class="settings-section-head">
+                        <h6><i class="bi bi-shop me-2 text-success"></i>Informações da loja</h6>
+                        <small>Aparecem no site para os clientes</small>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <label class="form-label">Nome da loja</label>
+                                <input type="text" id="s-name" class="form-control" placeholder="Helvinho Rações">
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label">Cidade</label>
+                                <input type="text" id="s-city" class="form-control" placeholder="São Paulo">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Endereço completo</label>
+                                <input type="text" id="s-address" class="form-control" placeholder="Av. das Patas, 1234 — Jardins, SP">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Horário de funcionamento</label>
+                                <input type="text" id="s-hours" class="form-control" placeholder="Seg–Sex: 8h–20h | Sáb: 9h–18h">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-head">
+                        <h6><i class="bi bi-qr-code me-2 text-success"></i>Pagamento PIX</h6>
+                        <small>Chave usada para gerar QR Code nos pedidos</small>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="row g-3">
+                            <div class="col-sm-4">
+                                <label class="form-label">Tipo de chave</label>
+                                <select id="s-pix-type" class="form-select">
+                                    <option value="cpf">CPF</option>
+                                    <option value="cnpj">CNPJ</option>
+                                    <option value="email">E-mail</option>
+                                    <option value="celular">Celular</option>
+                                    <option value="aleatoria" selected>Chave aleatória</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-8">
+                                <label class="form-label">Chave PIX</label>
+                                <input type="text" id="s-pix-key" class="form-control" placeholder="Cole sua chave PIX aqui">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-head">
+                        <h6><i class="bi bi-whatsapp me-2 text-success"></i>WhatsApp da loja</h6>
+                        <small>Número para onde os pedidos são enviados</small>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="col-sm-6">
+                            <label class="form-label">Número (com DDI e DDD)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">+</span>
+                                <input type="text" id="s-whatsapp" class="form-control" placeholder="5511987654321">
+                            </div>
+                            <div class="form-text">Somente números. Ex: 5511987654321</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-outline-secondary" onclick="loadSettings()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Descartar
+                    </button>
+                    <button class="btn btn-success fw-semibold px-4" id="btn-save-settings" onclick="saveSettings()">
+                        <i class="bi bi-check-lg me-1"></i>Salvar configurações
+                    </button>
                 </div>
             </div>
 
@@ -462,7 +579,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <img id="img-preview" src="" alt="Preview da imagem">
+                <img id="img-preview" src="" alt="Preview">
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Nome *</label>
@@ -470,17 +587,13 @@
                     </div>
                     <div class="col-sm-6">
                         <label class="form-label">Preço atual *</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light">R$</span>
-                            <input type="number" id="p-price" class="form-control" step="0.01" min="0.01" placeholder="0,00">
-                        </div>
+                        <div class="input-group"><span class="input-group-text bg-light">R$</span>
+                        <input type="number" id="p-price" class="form-control" step="0.01" min="0.01" placeholder="0,00"></div>
                     </div>
                     <div class="col-sm-6">
-                        <label class="form-label">Preço original <small class="fw-normal text-muted">(exibe badge de desconto)</small></label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light">R$</span>
-                            <input type="number" id="p-original-price" class="form-control" step="0.01" min="0.01" placeholder="0,00">
-                        </div>
+                        <label class="form-label">Preço original <small class="fw-normal text-muted">(badge de desconto)</small></label>
+                        <div class="input-group"><span class="input-group-text bg-light">R$</span>
+                        <input type="number" id="p-original-price" class="form-control" step="0.01" min="0.01" placeholder="0,00"></div>
                     </div>
                     <div class="col-sm-6">
                         <label class="form-label">Categoria *</label>
@@ -545,9 +658,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="order-detail-body"></div>
-            <div class="modal-footer border-0 pt-0">
+            <div class="modal-footer border-0 pt-0 gap-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
-                <button type="button" class="btn btn-success btn-sm fw-semibold" id="btn-whatsapp-order" style="background:#25d366;border-color:#25d366">
+                <button type="button" class="btn btn-sm fw-semibold" id="btn-whatsapp-order" style="background:#25d366;border-color:#25d366;color:#fff">
                     <i class="bi bi-whatsapp me-1"></i>WhatsApp
                 </button>
                 <button type="button" class="btn btn-success btn-sm fw-semibold" id="btn-change-status">
@@ -572,7 +685,7 @@
                     <option value="pending">Pendente</option>
                     <option value="confirmed">Confirmado</option>
                     <option value="preparing">Preparando</option>
-                    <option value="ready">Pronto p/ retirada/entrega</option>
+                    <option value="ready">Pronto p/ entrega/retirada</option>
                     <option value="delivered">Entregue</option>
                     <option value="cancelled">Cancelado</option>
                 </select>
@@ -609,7 +722,7 @@
     <div class="modal-dialog modal-sm modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-body text-center p-4">
-                <div style="font-size:2.2rem;margin-bottom:12px">⚠️</div>
+                <div style="font-size:2rem;margin-bottom:10px">⚠️</div>
                 <p class="fw-semibold mb-1" id="confirm-text">Tem certeza?</p>
                 <p class="text-muted small mb-0" id="confirm-sub"></p>
             </div>
