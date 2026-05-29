@@ -111,7 +111,11 @@ const PRODUCTS_FALLBACK = [
    Mapeia _id → id para manter compatibilidade com cart/wishlist que usam p.id. */
 async function loadProducts() {
     try {
-        const res = await fetch(API_BASE + '/products?limit=100');
+        /* Timeout de 8s evita travar a tela no cold start do Render free tier */
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(API_BASE + '/products?limit=100', { signal: controller.signal });
+        clearTimeout(timer);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         products = data.items.map(p => ({
@@ -930,7 +934,7 @@ function renderWishlistPage() {
 /* -----------------------------------------------------------
    Newsletter
 ----------------------------------------------------------- */
-function handleNewsletter(event) {
+async function handleNewsletter(event) {
     event.preventDefault();
     const input = event.target.querySelector('input[type="email"]');
     if (!input) return;
@@ -940,17 +944,50 @@ function handleNewsletter(event) {
         showToast('<i class="bi bi-exclamation-circle me-2"></i>E-mail inválido!');
         return;
     }
-    showToast('<i class="bi bi-envelope-check-fill me-2"></i>Perfeito! Novidades serão enviadas para ' + escHtml(email));
-    event.target.reset();
+    try {
+        const res  = await fetch(API_BASE + '/contact/newsletter', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        showToast('<i class="bi bi-envelope-check-fill me-2"></i>' + (data.message || 'Cadastrado com sucesso!'));
+        event.target.reset();
+    } catch {
+        showToast('<i class="bi bi-exclamation-circle me-2"></i>Erro ao cadastrar. Tente novamente.');
+    }
 }
 
 /* -----------------------------------------------------------
    Formulário de contato
 ----------------------------------------------------------- */
-function handleContactForm(event) {
+async function handleContactForm(event) {
     event.preventDefault();
-    showToast('<i class="bi bi-check-circle-fill me-2"></i>Mensagem enviada! Retornaremos em breve.');
-    event.target.reset();
+    const name    = (document.getElementById('contact-name')?.value    || '').trim();
+    const email   = (document.getElementById('contact-email')?.value   || '').trim();
+    const message = (document.getElementById('contact-message')?.value || '').trim();
+
+    if (!name || !message) {
+        showToast('<i class="bi bi-exclamation-circle me-2"></i>Preencha nome e mensagem.');
+        return;
+    }
+
+    const btn = event.target.querySelector('[type="submit"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+    try {
+        await fetch(API_BASE + '/contact', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ name, email: email || 'nao-informado@helvinho.com', message }),
+        });
+        showToast('<i class="bi bi-check-circle-fill me-2"></i>Mensagem enviada! Retornaremos em breve.');
+        event.target.reset();
+    } catch {
+        showToast('<i class="bi bi-exclamation-circle me-2"></i>Erro ao enviar. Tente novamente.');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar Mensagem'; }
+    }
 }
 
 /* -----------------------------------------------------------
