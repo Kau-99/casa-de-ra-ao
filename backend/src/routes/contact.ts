@@ -73,6 +73,19 @@ router.patch('/:id/replied', requireAuth, async (req: Request, res: Response, ne
   }
 });
 
+/* GET /api/contact/newsletter — lista assinantes (somente admin) */
+router.get('/newsletter', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const page  = Number(req.query.page  ?? 1);
+    const limit = Number(req.query.limit ?? 500);
+    const [subscribers, total] = await Promise.all([
+      Newsletter.find().sort({ subscribedAt: -1 }).skip((page - 1) * limit).limit(limit),
+      Newsletter.countDocuments(),
+    ]);
+    res.json({ subscribers, pagination: { total, page, limit } });
+  } catch (err) { next(err); }
+});
+
 /* POST /api/contact/newsletter */
 router.post('/newsletter', formLimiter, validateBody(newsletterSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -199,6 +199,26 @@
         .stock-input { width:70px; padding:2px 6px; font-size:.84rem; }
         .stock-banner { background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 16px; display:flex; align-items:center; gap:10px; }
 
+        /* ======== METRICS ======== */
+        .metric-card { background: var(--card-bg); border-radius: var(--radius); padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .metric-label { font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+        .metric-val   { font-size: 1.35rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+        .metric-change { font-size: .78rem; font-weight: 600; }
+        .metric-change.up   { color: #16a34a; }
+        .metric-change.down { color: #dc2626; }
+        .metric-change.flat { color: var(--muted); }
+
+        /* ======== BULK BAR ======== */
+        .bulk-bar {
+            position: sticky; bottom: 16px; left: 0; right: 0;
+            background: #1a3d2b; color: #fff;
+            border-radius: var(--radius); padding: 12px 20px;
+            display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.25);
+            margin: 12px 0 0; z-index: 10;
+        }
+        .bulk-bar .ms-auto { margin-left: auto !important; }
+
         /* ======== SETTINGS ======== */
         .settings-section { background: var(--card-bg); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 16px; }
         .settings-section-head { padding: 14px 20px; border-bottom: 1px solid var(--border); }
@@ -299,7 +319,8 @@
                 <span class="sb-badge d-none" id="badge-messages"></span>
             </button>
             <div class="sb-sect">Loja</div>
-            <button class="sb-btn" id="nav-settings"  onclick="showView('settings')"><i class="bi bi-gear"></i>Configurações</button>
+            <button class="sb-btn" id="nav-newsletter" onclick="showView('newsletter')"><i class="bi bi-envelope-heart"></i>Newsletter</button>
+            <button class="sb-btn" id="nav-settings"   onclick="showView('settings')"><i class="bi bi-gear"></i>Configurações</button>
         </div>
         <div class="sb-footer">
             <button class="sb-btn" onclick="logout()" style="color:rgba(255,255,255,.4)"><i class="bi bi-box-arrow-left"></i>Sair</button>
@@ -353,6 +374,31 @@
                     </div>
                 </div>
 
+                <!-- Métricas do mês -->
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-4">
+                        <div class="metric-card">
+                            <div class="metric-label mb-1">Faturamento do mês</div>
+                            <div class="metric-val" id="metric-month">—</div>
+                            <div class="metric-change flat" id="metric-month-change"></div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="metric-card">
+                            <div class="metric-label mb-1">Ticket médio</div>
+                            <div class="metric-val" id="metric-ticket">—</div>
+                            <div class="metric-change flat" id="metric-ticket-sub"></div>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="metric-card">
+                            <div class="metric-label mb-1">Produto mais vendido</div>
+                            <div class="metric-val" id="metric-bestseller" style="font-size:1rem">—</div>
+                            <div class="metric-change flat" id="metric-bestseller-qty"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="c-card mb-3">
                     <div class="c-head">
                         <h6>Faturamento</h6>
@@ -402,6 +448,23 @@
                     <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
                     <span id="stock-banner-text" class="small fw-semibold"></span>
                 </div>
+                <!-- Barra de ações em massa (aparece ao selecionar produtos) -->
+                <div id="bulk-bar" class="bulk-bar d-none">
+                    <i class="bi bi-check2-square fs-5"></i>
+                    <span id="bulk-count" class="fw-semibold small"></span>
+                    <div class="ms-auto d-flex gap-2">
+                        <button class="btn btn-sm btn-success fw-semibold" onclick="bulkAction('activate')">
+                            <i class="bi bi-eye me-1"></i>Ativar
+                        </button>
+                        <button class="btn btn-sm btn-outline-light fw-semibold" onclick="bulkAction('deactivate')">
+                            <i class="bi bi-eye-slash me-1"></i>Desativar
+                        </button>
+                        <button class="btn btn-sm btn-outline-light" onclick="bulkAction('clear')">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="c-card">
                     <div class="c-head">
                         <h6>Todos os produtos</h6>
@@ -422,7 +485,10 @@
                     <div class="table-responsive">
                         <table class="table table-hover c-table mb-0">
                             <thead class="table-light">
-                                <tr><th style="width:48px"></th><th>Nome</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Status</th><th style="width:88px"></th></tr>
+                                <tr>
+                                    <th style="width:36px"><input type="checkbox" id="select-all" class="form-check-input" onclick="toggleSelectAll()"></th>
+                                    <th style="width:48px"></th><th>Nome</th><th>Categoria</th><th>Preço</th><th>Estoque</th><th>Status</th><th style="width:88px"></th>
+                                </tr>
                             </thead>
                             <tbody id="products-tbody"></tbody>
                         </table>
@@ -436,6 +502,9 @@
                     <div class="c-head">
                         <h6>Pedidos</h6>
                         <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <button class="btn btn-sm btn-outline-success fw-semibold" onclick="exportOrdersCSV()">
+                            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar CSV
+                        </button>
                             <div class="btn-group btn-group-sm">
                                 <button class="btn btn-outline-secondary active" id="df-all"   onclick="setDateFilter('all')">Todos</button>
                                 <button class="btn btn-outline-secondary"        id="df-today" onclick="setDateFilter('today')">Hoje</button>
@@ -480,6 +549,35 @@
                                 <tr><th>Data</th><th>Nome</th><th>E-mail</th><th>Mensagem</th><th>Status</th><th></th></tr>
                             </thead>
                             <tbody id="messages-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== NEWSLETTER ===== -->
+            <div id="view-newsletter" class="d-none">
+                <div class="c-card">
+                    <div class="c-head">
+                        <div>
+                            <h6 class="mb-0">Assinantes da Newsletter</h6>
+                            <small class="text-muted" id="newsletter-count"></small>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <div class="form-check form-switch mb-0 align-self-center">
+                                <input class="form-check-input" type="checkbox" id="newsletter-active-only" onchange="renderNewsletter()">
+                                <label class="form-check-label small fw-semibold" for="newsletter-active-only">Apenas ativos</label>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success fw-semibold" onclick="exportNewsletterCSV()">
+                                <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover c-table mb-0">
+                            <thead class="table-light">
+                                <tr><th>E-mail</th><th>Cadastrado em</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="newsletter-tbody"></tbody>
                         </table>
                     </div>
                 </div>
@@ -658,8 +756,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="order-detail-body"></div>
-            <div class="modal-footer border-0 pt-0 gap-2">
+            <div class="modal-footer border-0 pt-0 gap-2 flex-wrap">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-print-order">
+                    <i class="bi bi-printer me-1"></i>Imprimir
+                </button>
                 <button type="button" class="btn btn-sm fw-semibold" id="btn-whatsapp-order" style="background:#25d366;border-color:#25d366;color:#fff">
                     <i class="bi bi-whatsapp me-1"></i>WhatsApp
                 </button>

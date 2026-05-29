@@ -7,11 +7,13 @@ let token             = localStorage.getItem('helvinhoAdminToken');
 let products          = [];
 let orders            = [];
 let messages          = [];
+let newsletter        = [];
 let editingProductId  = null;
 let viewingMessageId  = null;
 let currentDateFilter = 'all';
 let lastOrderTotal    = parseInt(localStorage.getItem('adminLastOrderCount') ?? '0', 10);
 let salesChartInst    = null;
+let selectedProducts  = new Set();
 
 /* ---- Init ---- */
 document.addEventListener('DOMContentLoaded', () => {
@@ -114,18 +116,19 @@ async function showApp() {
 /* ---- Router ---- */
 function showView(view) {
     closeSidebar();
-    ['dashboard','products','orders','messages','settings'].forEach(v => {
+    ['dashboard','products','orders','messages','newsletter','settings'].forEach(v => {
         document.getElementById('view-' + v)?.classList.toggle('d-none', v !== view);
         document.getElementById('nav-'  + v)?.classList.toggle('active', v === view);
     });
-    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', settings:'Configurações' };
+    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', newsletter:'Newsletter', settings:'Configurações' };
     setText('topbar-title', titles[view] ?? '');
 
     if (view === 'dashboard') loadDashboard();
     if (view === 'products')  loadProducts();
     if (view === 'orders')    loadOrders();
     if (view === 'messages')  loadMessages();
-    if (view === 'settings')  loadSettings();
+    if (view === 'newsletter') loadNewsletter();
+    if (view === 'settings')   loadSettings();
 }
 
 /* ---- Polling — detecta pedidos novos ---- */
@@ -191,6 +194,7 @@ async function loadStats() {
 async function loadDashboard() {
     await loadStats();
     loadSalesChart(7);
+    loadMetrics();
     tableLoading('dash-orders',   4, 4);
     tableLoading('dash-messages', 2, 4);
 
@@ -224,6 +228,49 @@ async function loadDashboard() {
                     <td data-label="Status"><span class="badge rounded-pill ${m.replied ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning'}">${m.replied ? 'Respondida' : 'Pendente'}</span></td>
                 </tr>`).join('');
     }
+}
+
+/* ---- Métricas do mês ---- */
+async function loadMetrics() {
+    const res = await api('GET', '/orders?limit=500');
+    if (!res?.ok) return;
+    const all = res.data.orders ?? [];
+
+    const now     = new Date();
+    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lstStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lstEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    const valid   = all.filter(o => o.status !== 'cancelled');
+    const curMon  = valid.filter(o => new Date(o.createdAt) >= curStart);
+    const lstMon  = valid.filter(o => new Date(o.createdAt) >= lstStart && new Date(o.createdAt) <= lstEnd);
+
+    const curTotal  = curMon.reduce((s, o) => s + o.total, 0);
+    const lstTotal  = lstMon.reduce((s, o) => s + o.total, 0);
+    const ticket    = curMon.length ? curTotal / curMon.length : 0;
+    const change    = lstTotal > 0 ? ((curTotal - lstTotal) / lstTotal) * 100 : null;
+
+    /* Produto mais vendido (por quantidade em todos os pedidos) */
+    const qty = {};
+    valid.forEach(o => o.items.forEach(i => { qty[i.name] = (qty[i.name] ?? 0) + i.qty; }));
+    const [bestName, bestQty] = Object.entries(qty).sort((a, b) => (b[1] as number) - (a[1] as number))[0] ?? ['—', 0];
+
+    setText('metric-month',  fmtMoney(curTotal));
+    setText('metric-ticket', fmtMoney(ticket));
+    setText('metric-ticket-sub', `${curMon.length} pedido${curMon.length !== 1 ? 's' : ''} este mês`);
+
+    /* Variação mês a mês */
+    const chgEl = document.getElementById('metric-month-change');
+    if (chgEl) {
+        if (change === null) { chgEl.textContent = 'Primeiro mês de dados'; chgEl.className = 'metric-change flat'; }
+        else if (change >= 0) { chgEl.textContent = `+${change.toFixed(1)}% vs mês anterior`; chgEl.className = 'metric-change up'; }
+        else { chgEl.textContent = `${change.toFixed(1)}% vs mês anterior`; chgEl.className = 'metric-change down'; }
+    }
+
+    /* Produto mais vendido */
+    const nameShort = String(bestName).length > 22 ? String(bestName).substring(0, 22) + '…' : String(bestName);
+    setText('metric-bestseller',     nameShort);
+    setText('metric-bestseller-qty', bestQty ? `${bestQty} unidades vendidas` : 'Sem vendas ainda');
 }
 
 /* ---- Sales Chart ---- */
@@ -308,6 +355,11 @@ function renderProducts() {
 
     tbody.innerHTML = list.map(p => `
         <tr>
+            <td data-label="" onclick="event.stopPropagation()">
+                <input type="checkbox" class="form-check-input product-checkbox" data-id="${p._id}"
+                       ${selectedProducts.has(p._id) ? 'checked' : ''}
+                       onchange="toggleProductSelect('${p._id}', this.checked)">
+            </td>
             <td data-label=""><img src="${escAttr(p.img)}" class="p-thumb" alt="" loading="lazy" onerror="this.style.opacity='0'"></td>
             <td data-label="Nome">
                 <div class="fw-semibold">${escHtml(p.name)}</div>
@@ -469,6 +521,131 @@ function editStockInline(id, currentStock, spanEl) {
     input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') renderProducts(); });
 }
 
+/* ---- Bulk actions ---- */
+function toggleSelectAll() {
+    const allCbs = document.querySelectorAll('.product-checkbox');
+    const sa     = document.getElementById('select-all');
+    const check  = sa?.checked ?? false;
+    selectedProducts.clear();
+    allCbs.forEach(cb => {
+        cb.checked = check;
+        if (check) selectedProducts.add(cb.dataset.id);
+    });
+    updateBulkBar();
+}
+
+function toggleProductSelect(id, checked) {
+    if (checked) selectedProducts.add(id); else selectedProducts.delete(id);
+    updateBulkBar();
+    const allCbs = document.querySelectorAll('.product-checkbox');
+    const sa     = document.getElementById('select-all');
+    if (sa) {
+        sa.checked       = selectedProducts.size === allCbs.length && allCbs.length > 0;
+        sa.indeterminate = selectedProducts.size > 0 && selectedProducts.size < allCbs.length;
+    }
+}
+
+function updateBulkBar() {
+    const bar   = document.getElementById('bulk-bar');
+    const count = document.getElementById('bulk-count');
+    if (!bar) return;
+    const n = selectedProducts.size;
+    bar.classList.toggle('d-none', n === 0);
+    if (count && n > 0) count.textContent = `${n} produto${n > 1 ? 's' : ''} selecionado${n > 1 ? 's' : ''}`;
+}
+
+async function bulkAction(action) {
+    if (action === 'clear') {
+        selectedProducts.clear(); updateBulkBar(); renderProducts(); return;
+    }
+    if (!selectedProducts.size) return;
+
+    const ids  = Array.from(selectedProducts);
+    const verb = action === 'activate' ? 'ativar' : 'desativar';
+    const ok   = await showConfirm(
+        `${verb.charAt(0).toUpperCase() + verb.slice(1)} ${ids.length} produto${ids.length > 1 ? 's' : ''}?`,
+        'A ação será aplicada a todos os produtos selecionados.'
+    );
+    if (!ok) return;
+
+    const active  = action === 'activate';
+    const results = await Promise.all(ids.map(id => api('PUT', '/products/' + id, { active })));
+    const success = results.filter(r => r?.ok).length;
+
+    selectedProducts.clear();
+    toast(`${success} produto${success > 1 ? 's' : ''} ${active ? 'ativado' : 'desativado'}${success > 1 ? 's' : ''}!`, 'success');
+    loadProducts(); loadStats();
+}
+
+/* ---- Export CSV (pedidos) ---- */
+function exportOrdersCSV() {
+    const statusFilter  = document.getElementById('order-filter')?.value ?? '';
+    let   list          = statusFilter ? orders.filter(o => o.status === statusFilter) : orders;
+    list = applyDateFilter(list);
+
+    if (!list.length) { toast('Nenhum pedido para exportar com os filtros atuais.', 'warning'); return; }
+
+    const statusLabels = { pending:'Pendente', confirmed:'Confirmado', preparing:'Preparando', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' };
+
+    const headers = ['Nº Pedido','Data/Hora','Status','Tipo de Entrega','Endereço','Forma Pgto.','Detalhe Pgto.','Produtos','Qtd Total','Subtotais','Total (R$)','Observações'];
+
+    const rows = list.map(o => {
+        const pd  = o.paymentDetails ?? {};
+        let payDt = '';
+        if (o.payment === 'Cartão' && pd.cardType)    payDt = pd.cardType === 'credito' ? 'Crédito' : 'Débito';
+        if (o.payment === 'Dinheiro' && pd.cashAmount) {
+            const chg = Math.max(0, pd.cashAmount - o.total);
+            payDt = `Tem R$${pd.cashAmount.toFixed(2).replace('.',',')}${chg > 0 ? ` | Troco R$${chg.toFixed(2).replace('.',',')}` : ' | Sem troco'}`;
+        }
+        if (o.payment === 'Pix') payDt = 'Verificar recebimento';
+
+        return [
+            '#' + o._id.slice(-6).toUpperCase(),
+            fmtDate(o.createdAt),
+            statusLabels[o.status] ?? o.status,
+            o.deliveryType === 'delivery' ? 'Entrega a domicílio' : 'Retirada na loja',
+            o.address ?? '',
+            o.payment,
+            payDt,
+            o.items.map(i => `${i.qty}x ${i.name}`).join(' | '),
+            o.items.reduce((s, i) => s + i.qty, 0),
+            o.items.map(i => `${i.qty}×R$${i.price.toFixed(2).replace('.',',')}`).join(' | '),
+            o.total.toFixed(2).replace('.', ','),
+            o.notes ?? '',
+        ];
+    });
+
+    const totalFat  = list.reduce((s, o) => s + o.total, 0);
+    const ticket    = list.length ? totalFat / list.length : 0;
+    const entregues = list.filter(o => o.status === 'delivered').length;
+    const cancelados = list.filter(o => o.status === 'cancelled').length;
+
+    const summary = [
+        [],
+        ['RESUMO DO PERÍODO','','','','','','','','','','',''],
+        [`Total de pedidos: ${list.length}`,`Entregues: ${entregues}`,`Cancelados: ${cancelados}`,'','','','','','','',`Faturado: R$${totalFat.toFixed(2).replace('.',',')}`, ''],
+        [`Ticket médio: R$${ticket.toFixed(2).replace('.',',')}`, '', '','','','','','','','','',''],
+    ];
+
+    /* UTF-8 BOM garante que o Excel abre acentos corretamente */
+    const csv = '﻿' + [headers, ...rows, ...summary]
+        .map(row => row.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';'))
+        .join('\r\n');
+
+    const today    = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-');
+    const sfPeriod = currentDateFilter !== 'all' ? `_${currentDateFilter}` : '';
+    const sfStatus = statusFilter ? `_${statusFilter}` : '';
+    const filename = `pedidos_helvinho_${today}${sfPeriod}${sfStatus}.csv`;
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+
+    toast(`✅ ${list.length} pedidos exportados!`, 'success');
+}
+
 function previewImg() {
     const url = document.getElementById('p-img')?.value ?? '';
     const el  = document.getElementById('img-preview');
@@ -555,8 +732,10 @@ function openOrderDetail(id) {
         setTimeout(() => openOrderModal(o._id, o.status), 320);
     };
 
-    const btnWA = document.getElementById('btn-whatsapp-order');
-    if (btnWA) btnWA.onclick = () => openOrderWhatsApp(o);
+    const btnWA    = document.getElementById('btn-whatsapp-order');
+    const btnPrint = document.getElementById('btn-print-order');
+    if (btnWA)    btnWA.onclick    = () => openOrderWhatsApp(o);
+    if (btnPrint) btnPrint.onclick = () => printOrder(o);
 
     const body = document.getElementById('order-detail-body');
     if (!body) return;
@@ -631,6 +810,58 @@ async function saveOrderStatus() {
         toast('Status atualizado!', 'success');
         loadOrders(); loadStats();
     } else toast(res?.data?.error ?? 'Erro.', 'danger');
+}
+
+function printOrder(o) {
+    const slabels = { pending:'Pendente', confirmed:'Confirmado', preparing:'Em preparo', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' };
+    const lines   = o.items.map(i => `
+        <tr>
+            <td>${escHtml(i.qty + 'x ')} <strong>${escHtml(i.name)}</strong></td>
+            <td style="text-align:right;white-space:nowrap">${fmtMoney(i.price * i.qty)}</td>
+        </tr>`).join('');
+    const pd  = o.paymentDetails ?? {};
+    let payDt = '';
+    if (o.payment === 'Cartão' && pd.cardType)    payDt = ` (${pd.cardType === 'credito' ? 'Crédito' : 'Débito'})`;
+    if (o.payment === 'Dinheiro' && pd.cashAmount) { const chg = Math.max(0, pd.cashAmount - o.total); payDt = ` — Tem ${fmtMoney(pd.cashAmount)}${chg > 0 ? ` | Troco ${fmtMoney(chg)}` : ''}`; }
+
+    const win = window.open('', '_blank', 'width=420,height=680');
+    if (!win) { toast('Popup bloqueado. Permita popups para imprimir.', 'warning'); return; }
+    win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+        <meta charset="UTF-8"><title>Pedido #${o._id.slice(-6).toUpperCase()}</title>
+        <style>
+            *{margin:0;padding:0;box-sizing:border-box}
+            body{font-family:'Courier New',monospace;font-size:13px;padding:20px;max-width:360px;color:#000}
+            h1{text-align:center;font-size:15px;margin-bottom:2px}
+            .sub{text-align:center;font-size:11px;color:#555;margin-bottom:10px}
+            hr{border:none;border-top:1px dashed #000;margin:10px 0}
+            table{width:100%;border-collapse:collapse}
+            td{padding:3px 0;vertical-align:top}
+            .info-label{font-size:10px;text-transform:uppercase;color:#666;font-weight:bold}
+            .total td{font-weight:bold;font-size:14px;border-top:2px solid #000;padding-top:8px}
+            .btn-print{display:block;width:100%;margin-top:16px;padding:10px;background:#2d9e5f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-family:sans-serif}
+            @media print{.btn-print{display:none}}
+        </style></head><body>
+        <h1>🐾 Helvinho Rações</h1>
+        <div class="sub">Pedido gerado em ${new Date().toLocaleString('pt-BR')}</div>
+        <hr>
+        <p><span class="info-label">Pedido:</span> <strong>#${o._id.slice(-6).toUpperCase()}</strong></p>
+        <p><span class="info-label">Data:</span> ${fmtDate(o.createdAt)}</p>
+        <p><span class="info-label">Status:</span> ${slabels[o.status] ?? o.status}</p>
+        <hr>
+        <table>
+            ${lines}
+            <tr class="total"><td>TOTAL</td><td style="text-align:right">${fmtMoney(o.total)}</td></tr>
+        </table>
+        <hr>
+        <p><span class="info-label">Entrega:</span> ${o.deliveryType === 'delivery' ? 'Entrega a domicílio' : 'Retirada na loja'}</p>
+        ${o.address ? `<p><span class="info-label">Endereço:</span> ${escHtml(o.address)}</p>` : ''}
+        <p><span class="info-label">Pagamento:</span> ${escHtml(o.payment)}${escHtml(payDt)}</p>
+        ${o.notes ? `<hr><p><span class="info-label">Obs:</span> ${escHtml(o.notes)}</p>` : ''}
+        <hr>
+        <p style="text-align:center;font-size:11px;color:#aaa">Obrigado pela preferência! 🐾</p>
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimir</button>
+    </body></html>`);
+    win.document.close();
 }
 
 function openOrderWhatsApp(o) {
@@ -708,6 +939,74 @@ async function markReplied() {
         toast('Marcada como respondida!', 'success');
         loadMessages(); loadStats();
     } else toast(res?.data?.error ?? 'Erro.', 'danger');
+}
+
+/* ---- Newsletter ---- */
+async function loadNewsletter() {
+    tableLoading('newsletter-tbody', 3);
+    const res = await api('GET', '/contact/newsletter?limit=500');
+    if (!res?.ok) return;
+    newsletter = res.data.subscribers ?? [];
+    renderNewsletter();
+}
+
+function renderNewsletter() {
+    const activeOnly = document.getElementById('newsletter-active-only')?.checked ?? false;
+    const list       = activeOnly ? newsletter.filter(n => n.active) : newsletter;
+    const tbody      = document.getElementById('newsletter-tbody');
+    const countEl    = document.getElementById('newsletter-count');
+
+    if (countEl) {
+        const ativos   = newsletter.filter(n => n.active).length;
+        const inativos = newsletter.filter(n => !n.active).length;
+        countEl.textContent = `${ativos} ativo${ativos !== 1 ? 's' : ''} · ${inativos} inativo${inativos !== 1 ? 's' : ''}`;
+    }
+
+    if (!tbody) return;
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-5"><i class="bi bi-envelope-heart d-block fs-2 mb-2 opacity-25"></i>Nenhum assinante.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list.map(n => `
+        <tr>
+            <td data-label="E-mail"><span class="fw-semibold small">${escHtml(n.email)}</span></td>
+            <td data-label="Cadastrado em"><span class="text-muted small">${fmtDate(n.subscribedAt)}</span></td>
+            <td data-label="Status">
+                <span class="badge rounded-pill ${n.active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'}">
+                    ${n.active ? 'Ativo' : 'Inativo'}
+                </span>
+            </td>
+        </tr>`).join('');
+}
+
+function exportNewsletterCSV() {
+    if (!newsletter.length) { toast('Nenhum assinante para exportar.', 'warning'); return; }
+
+    const activeOnly = document.getElementById('newsletter-active-only')?.checked ?? false;
+    const list       = activeOnly ? newsletter.filter(n => n.active) : newsletter;
+
+    const headers = ['E-mail', 'Data de Cadastro', 'Status'];
+    const rows    = list.map(n => [n.email, fmtDate(n.subscribedAt), n.active ? 'Ativo' : 'Inativo']);
+
+    const ativos   = list.filter(n => n.active).length;
+    const inativos = list.filter(n => !n.active).length;
+    const summary  = [[], [`Total: ${list.length}`, `Ativos: ${ativos}`, `Inativos: ${inativos}`]];
+
+    const csv = '﻿' + [headers, ...rows, ...summary]
+        .map(row => row.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';'))
+        .join('\r\n');
+
+    const today    = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-');
+    const filename = `newsletter_helvinho_${today}${activeOnly ? '_ativos' : ''}.csv`;
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+
+    toast(`✅ ${list.length} e-mails exportados!`, 'success');
 }
 
 /* ---- Settings ---- */
