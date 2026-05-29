@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin — Helvinho Rações</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2d9e5f">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -199,6 +201,60 @@
         .stock-input { width:70px; padding:2px 6px; font-size:.84rem; }
         .stock-banner { background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px 16px; display:flex; align-items:center; gap:10px; }
 
+        /* ======== DARK MODE ======== */
+        [data-theme="dark"] {
+            --bg:         #0f172a;
+            --card-bg:    #1e293b;
+            --border:     #334155;
+            --text:       #f1f5f9;
+            --muted:      #94a3b8;
+            --sidebar-bg: #0d1f14;
+        }
+        [data-theme="dark"] body { color: var(--text); }
+        [data-theme="dark"] .table-light { background: #273549 !important; color: #94a3b8 !important; }
+        [data-theme="dark"] .table-hover tbody tr:hover { background: #253142 !important; }
+        [data-theme="dark"] .table th  { color: var(--muted); border-bottom-color: var(--border) !important; }
+        [data-theme="dark"] .table td  { border-color: #1e293b; color: var(--text); }
+        [data-theme="dark"] .form-control,
+        [data-theme="dark"] .form-select { background: #1e293b; border-color: #475569; color: var(--text); }
+        [data-theme="dark"] .form-control::placeholder { color: #64748b; }
+        [data-theme="dark"] .input-group-text { background: #273549; border-color: #475569; color: var(--muted); }
+        [data-theme="dark"] .modal-content { background: var(--card-bg); color: var(--text); border-color: var(--border); }
+        [data-theme="dark"] .modal-header  { border-bottom-color: var(--border) !important; }
+        [data-theme="dark"] .modal-footer  { border-top-color:    var(--border) !important; }
+        [data-theme="dark"] .btn-outline-secondary { border-color: #475569; color: var(--muted); }
+        [data-theme="dark"] .btn-outline-secondary:hover { background: #334155; color: #fff; }
+        [data-theme="dark"] .btn-close { filter: invert(1); }
+        [data-theme="dark"] .bg-light   { background: #273549 !important; }
+        [data-theme="dark"] .text-muted { color: var(--muted) !important; }
+        [data-theme="dark"] .settings-section,
+        [data-theme="dark"] .settings-section-head { background: var(--card-bg); border-color: var(--border); }
+        [data-theme="dark"] .metric-card { background: var(--card-bg); }
+        [data-theme="dark"] .alert-danger { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
+        [data-theme="dark"] .v-errors { background: #450a0a; border-color: #7f1d1d; }
+        [data-theme="dark"] .v-errors li { color: #fca5a5; }
+        [data-theme="dark"] #topbar { background: var(--card-bg); border-bottom-color: var(--border); }
+        [data-theme="dark"] .login-card { background: #1e293b; }
+        [data-theme="dark"] .login-card h4,
+        [data-theme="dark"] .login-card .form-label { color: var(--text); }
+        [data-theme="dark"] .search-dropdown { background: var(--card-bg); border-color: var(--border); }
+        [data-theme="dark"] .search-item:hover { background: #273549; }
+        [data-theme="dark"] .search-item { color: var(--text); }
+
+        /* ======== GLOBAL SEARCH ======== */
+        .search-wrap { position: relative; }
+        .search-dropdown {
+            position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+            background: var(--card-bg); border-radius: var(--radius);
+            box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            border: 1px solid var(--border); z-index: 1000;
+            max-height: 400px; overflow-y: auto;
+        }
+        .srch-group-label { padding: 6px 14px 2px; font-size: .65rem; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: .08em; }
+        .srch-item { padding: 8px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: .84rem; transition: background .1s; }
+        .srch-item:hover { background: var(--primary-lt); }
+        .srch-empty { padding: 20px 14px; text-align: center; color: var(--muted); font-size: .84rem; }
+
         /* ======== METRICS ======== */
         .metric-card { background: var(--card-bg); border-radius: var(--radius); padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
         .metric-label { font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
@@ -320,6 +376,7 @@
             </button>
             <div class="sb-sect">Loja</div>
             <button class="sb-btn" id="nav-newsletter" onclick="showView('newsletter')"><i class="bi bi-envelope-heart"></i>Newsletter</button>
+            <button class="sb-btn" id="nav-activity"   onclick="showView('activity')"><i class="bi bi-clock-history"></i>Atividades</button>
             <button class="sb-btn" id="nav-settings"   onclick="showView('settings')"><i class="bi bi-gear"></i>Configurações</button>
         </div>
         <div class="sb-footer">
@@ -336,10 +393,24 @@
                 <h6 id="topbar-title">Dashboard</h6>
             </div>
             <div class="topbar-right">
-                <span class="text-muted small d-none d-sm-inline" id="topbar-user"></span>
-                <div class="rounded-circle bg-success-subtle d-flex align-items-center justify-content-center" style="width:32px;height:32px;flex-shrink:0">
-                    <i class="bi bi-person text-success"></i>
+                <!-- Busca global -->
+                <div class="search-wrap d-none d-md-block">
+                    <div class="d-flex align-items-center gap-1" style="background:var(--bg);border-radius:8px;padding:4px 10px;border:1px solid var(--border)">
+                        <i class="bi bi-search text-muted" style="font-size:.85rem"></i>
+                        <input type="text" id="global-search" class="border-0 bg-transparent small" placeholder="Buscar..." style="outline:none;width:160px;color:inherit" oninput="globalSearch(this.value)" onblur="setTimeout(hideSearch,200)" onfocus="if(this.value)globalSearch(this.value)">
+                    </div>
+                    <div id="search-results" class="search-dropdown d-none" style="width:320px"></div>
                 </div>
+                <!-- Dark mode -->
+                <button class="btn btn-sm btn-outline-secondary px-2" onclick="toggleDarkMode()" title="Modo escuro">
+                    <i id="dark-icon" class="bi bi-moon"></i>
+                </button>
+                <!-- Notificações -->
+                <button class="btn btn-sm btn-outline-secondary px-2 position-relative" onclick="requestNotificationPermission()" id="btn-notif" title="Ativar notificações">
+                    <i class="bi bi-bell"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success d-none" id="notif-badge" style="font-size:.55rem">ON</span>
+                </button>
+                <span class="text-muted small d-none d-lg-inline" id="topbar-user"></span>
             </div>
         </div>
 
@@ -554,6 +625,22 @@
                 </div>
             </div>
 
+            <!-- ===== ACTIVITY LOG ===== -->
+            <div id="view-activity" class="d-none">
+                <div class="c-card">
+                    <div class="c-head">
+                        <h6>Log de atividades</h6>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadActivity()"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table c-table mb-0">
+                            <thead class="table-light"><tr><th>Data/Hora</th><th>Admin</th><th>Ação</th><th>Detalhe</th></tr></thead>
+                            <tbody id="activity-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- ===== NEWSLETTER ===== -->
             <div id="view-newsletter" class="d-none">
                 <div class="c-card">
@@ -654,6 +741,19 @@
                     </div>
                 </div>
 
+                <div class="settings-section">
+                    <div class="settings-section-head">
+                        <h6><i class="bi bi-image me-2 text-success"></i>Upload de imagens</h6>
+                        <small>Chave gratuita em <a href="https://api.imgbb.com" target="_blank">api.imgbb.com</a> — crie uma conta e gere a API Key</small>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="col-sm-8">
+                            <label class="form-label">Chave API ImgBB</label>
+                            <input type="text" id="s-imgbb" class="form-control" placeholder="Cole sua API Key aqui">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="d-flex gap-2 justify-content-end">
                     <button class="btn btn-outline-secondary" onclick="loadSettings()">
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Descartar
@@ -720,8 +820,19 @@
                         <input type="number" id="p-stock" class="form-control" min="0" placeholder="0">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">URL da imagem *</label>
-                        <input type="url" id="p-img" class="form-control" placeholder="https://..." oninput="previewImg()">
+                        <label class="form-label">Imagem *</label>
+                        <div class="d-flex gap-2 align-items-start">
+                            <div class="flex-grow-1">
+                                <input type="url" id="p-img" class="form-control mb-2" placeholder="URL da imagem (https://...)" oninput="previewImg()">
+                                <div class="d-flex align-items-center gap-2">
+                                    <label class="btn btn-sm btn-outline-secondary mb-0" style="cursor:pointer">
+                                        <i class="bi bi-upload me-1"></i>Upload direto
+                                        <input type="file" id="p-img-file" accept="image/*" class="d-none" onchange="handleImageUpload(this)">
+                                    </label>
+                                    <span id="upload-status" class="small text-muted"></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-12">
                         <label class="form-label">Descrição * <small class="fw-normal text-muted">10–500 caracteres</small></label>

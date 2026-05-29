@@ -1,0 +1,19 @@
+{
+    "name": "Helvinho Rações — Admin",
+    "short_name": "Admin",
+    "description": "Painel administrativo da Helvinho Rações",
+    "start_url": "/admin.html",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#1a3d2b",
+    "theme_color": "#2d9e5f",
+    "icons": [
+        {
+            "src": "/assets/dog.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

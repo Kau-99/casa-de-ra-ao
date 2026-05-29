@@ -10,6 +10,7 @@ import {
   productQuerySchema,
 } from '../middleware/validation';
 import { AppError } from '../middleware/errorHandler';
+import { logActivity } from '../utils/activity';
 
 const router = Router();
 
@@ -74,6 +75,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/', requireAuth, validateBody(createProductSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const product = await Product.create(req.body);
+    logActivity(req.admin?.email ?? '', 'Produto criado', product.name);
     res.status(201).json(product);
   } catch (err) {
     next(err);
@@ -88,6 +90,7 @@ router.put('/:id', requireAuth, validateBody(updateProductSchema), async (req: R
       runValidators: true,
     });
     if (!product) return next(new AppError('Produto não encontrado.', 404));
+    logActivity(req.admin?.email ?? '', 'Produto editado', product.name);
     res.json(product);
   } catch (err) {
     next(err);

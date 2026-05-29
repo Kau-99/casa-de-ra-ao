@@ -216,6 +216,7 @@ export interface ISettings extends Document {
   pixKey:       string;
   pixKeyType:   string;
   whatsapp:     string;
+  imgbbKey:     string;
 }
 
 const settingsSchema = new Schema<ISettings>({
@@ -226,6 +227,28 @@ const settingsSchema = new Schema<ISettings>({
   pixKey:       { type: String, default: '' },
   pixKeyType:   { type: String, default: 'aleatoria', enum: ['cpf','cnpj','email','celular','aleatoria'] },
   whatsapp:     { type: String, default: '5511999999999' },
+  imgbbKey:     { type: String, default: '' },
 }, { timestamps: true });
 
 export const Settings = model<ISettings>('Settings', settingsSchema);
+
+/* ============================================================
+   ActivityLog — histórico de ações dos admins
+============================================================ */
+
+export interface IActivityLog extends Document {
+  adminEmail: string;
+  action:     string;
+  details:    string;
+  createdAt:  Date;
+}
+
+const activityLogSchema = new Schema<IActivityLog>({
+  adminEmail: { type: String, required: true },
+  action:     { type: String, required: true },
+  details:    { type: String, default: '' },
+}, { timestamps: true });
+
+activityLogSchema.index({ createdAt: -1 });
+
+export const ActivityLog = model<IActivityLog>('ActivityLog', activityLogSchema);

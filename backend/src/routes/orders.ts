@@ -8,6 +8,7 @@ import {
 } from '../middleware/validation';
 import { AppError } from '../middleware/errorHandler';
 import { sendOrderWhatsApp } from '../utils/notifications';
+import { logActivity }       from '../utils/activity';
 
 const router = Router();
 
@@ -132,6 +133,7 @@ router.patch(
         { new: true, runValidators: true }
       );
       if (!order) return next(new AppError('Pedido não encontrado.', 404));
+      logActivity(req.admin?.email ?? '', 'Status do pedido alterado', `#${order._id.toString().slice(-6).toUpperCase()} → ${req.body.status}`);
       res.json(order);
     } catch (err) {
       next(err);

@@ -5,7 +5,8 @@ import rateLimit from 'express-rate-limit';
 import { Admin } from '../models';
 import { requireAuth } from '../middleware/auth';
 import { validateBody, loginSchema } from '../middleware/validation';
-import { AppError } from '../middleware/errorHandler';
+import { AppError }      from '../middleware/errorHandler';
+import { logActivity }   from '../utils/activity';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ router.post('/login', loginLimiter, validateBody(loginSchema), async (req: Reque
       role:    admin.role,
     });
 
+    logActivity(admin.email, 'Login realizado', '');
     res.json({
       token,
       admin: { id: admin._id, email: admin.email, role: admin.role },

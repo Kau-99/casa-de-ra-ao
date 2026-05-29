@@ -9,7 +9,8 @@ import productsRouter from './routes/products';
 import ordersRouter   from './routes/orders';
 import contactRouter  from './routes/contact';
 import authRouter     from './routes/auth';
-import settingsRouter from './routes/settings';
+import settingsRouter  from './routes/settings';
+import activityRouter  from './routes/activity';
 import { Settings }   from './models';
 import { errorHandler, notFound } from './middleware/errorHandler';
 
@@ -77,6 +78,7 @@ app.use('/api/orders',   ordersRouter);
 app.use('/api/contact',  contactRouter);
 app.use('/api/auth',     authRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/activity', activityRouter);
 
 /* ---- Erros ---- */
 app.use(notFound);

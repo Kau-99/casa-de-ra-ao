@@ -17,8 +17,13 @@ let selectedProducts  = new Set();
 
 /* ---- Init ---- */
 document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    registerSW();
     document.getElementById('login-password')?.addEventListener('keydown', e => {
         if (e.key === 'Enter') login();
+    });
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#global-search') && !e.target.closest('#search-results')) hideSearch();
     });
     if (token) showApp();
 });
@@ -116,17 +121,18 @@ async function showApp() {
 /* ---- Router ---- */
 function showView(view) {
     closeSidebar();
-    ['dashboard','products','orders','messages','newsletter','settings'].forEach(v => {
+    ['dashboard','products','orders','messages','activity','newsletter','settings'].forEach(v => {
         document.getElementById('view-' + v)?.classList.toggle('d-none', v !== view);
         document.getElementById('nav-'  + v)?.classList.toggle('active', v === view);
     });
-    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', newsletter:'Newsletter', settings:'Configurações' };
+    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', activity:'Log de Atividades', newsletter:'Newsletter', settings:'Configurações' };
     setText('topbar-title', titles[view] ?? '');
 
     if (view === 'dashboard') loadDashboard();
     if (view === 'products')  loadProducts();
     if (view === 'orders')    loadOrders();
     if (view === 'messages')  loadMessages();
+    if (view === 'activity')   loadActivity();
     if (view === 'newsletter') loadNewsletter();
     if (view === 'settings')   loadSettings();
 }
@@ -139,9 +145,11 @@ function startPolling() {
         if (!res?.ok) return;
         const total = res.data.pagination?.total ?? 0;
         if (lastOrderTotal > 0 && total > lastOrderTotal) {
-            const n = total - lastOrderTotal;
+            const n   = total - lastOrderTotal;
+            const msg = `${n} novo${n > 1 ? 's' : ''} pedido${n > 1 ? 's' : ''}!`;
             playSound();
-            toast(`🛍️ ${n} novo${n > 1 ? 's' : ''} pedido${n > 1 ? 's' : ''}!`, 'success');
+            toast(`🛍️ ${msg}`, 'success');
+            showBrowserNotification('🛍️ Helvinho Rações', msg);
             const nb = document.getElementById('nav-orders');
             nb?.classList.add('nav-flash');
             setTimeout(() => nb?.classList.remove('nav-flash'), 2500);
@@ -1021,6 +1029,10 @@ async function loadSettings() {
     setVal('s-pix-key',  s.pixKey       ?? '');
     setVal('s-pix-type', s.pixKeyType   ?? 'aleatoria');
     setVal('s-whatsapp', s.whatsapp     ?? '');
+    setVal('s-imgbb',    s.imgbbKey     ?? '');
+    /* Atualiza badge de notificações com base na permissão atual */
+    const badge = document.getElementById('notif-badge');
+    if (badge) badge.classList.toggle('d-none', Notification.permission !== 'granted');
 }
 
 async function saveSettings() {
@@ -1032,6 +1044,7 @@ async function saveSettings() {
         pixKey:       (document.getElementById('s-pix-key')?.value  ?? '').trim(),
         pixKeyType:   document.getElementById('s-pix-type')?.value  ?? 'aleatoria',
         whatsapp:     (document.getElementById('s-whatsapp')?.value ?? '').replace(/\D/g, ''),
+        imgbbKey:     (document.getElementById('s-imgbb')?.value    ?? '').trim(),
     };
 
     const btn = document.getElementById('btn-save-settings');
@@ -1041,6 +1054,211 @@ async function saveSettings() {
 
     if (res?.ok) toast('Configurações salvas!', 'success');
     else toast(res?.data?.error ?? 'Erro ao salvar.', 'danger');
+}
+
+/* ---- Dark mode ---- */
+function applyTheme() {
+    const saved = localStorage.getItem('adminTheme') ??
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', saved);
+    const icon = document.getElementById('dark-icon');
+    if (icon) icon.className = saved === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+}
+
+function toggleDarkMode() {
+    const isDark  = document.documentElement.getAttribute('data-theme') === 'dark';
+    const theme   = isDark ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('adminTheme', theme);
+    const icon = document.getElementById('dark-icon');
+    if (icon) icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+}
+
+/* ---- PWA + notificações ---- */
+function registerSW() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+}
+
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) { toast('Notificações não suportadas neste navegador.', 'warning'); return; }
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+        const badge = document.getElementById('notif-badge');
+        badge?.classList.remove('d-none');
+        toast('🔔 Notificações ativadas! Você será avisado de novos pedidos.', 'success');
+    } else {
+        toast('Permissão de notificação negada.', 'warning');
+    }
+}
+
+/* Chamada pelo polling quando detecta novo pedido */
+function showBrowserNotification(title, body) {
+    if (Notification.permission !== 'granted') return;
+    new Notification(title, { body, icon: '/assets/dog.png', tag: 'helvinho-pedido' });
+}
+
+/* ---- Busca global ---- */
+function globalSearch(q) {
+    const query = q.trim().toLowerCase();
+    if (!query || query.length < 2) { hideSearch(); return; }
+
+    const pHits = products.filter(p =>
+        p.name.toLowerCase().includes(query) || p.category.toLowerCase().includes(query)
+    ).slice(0, 4);
+
+    const oHits = orders.filter(o =>
+        o._id.slice(-6).toLowerCase().includes(query) ||
+        o.items.some(i => i.name.toLowerCase().includes(query))
+    ).slice(0, 3);
+
+    const mHits = messages.filter(m =>
+        m.name.toLowerCase().includes(query) ||
+        m.email.toLowerCase().includes(query) ||
+        m.message.toLowerCase().includes(query)
+    ).slice(0, 3);
+
+    const el = document.getElementById('search-results');
+    if (!el) return;
+
+    if (!pHits.length && !oHits.length && !mHits.length) {
+        el.innerHTML = `<div class="srch-empty"><i class="bi bi-search me-2"></i>Nenhum resultado para "<strong>${escHtml(q)}</strong>"</div>`;
+        el.classList.remove('d-none');
+        return;
+    }
+
+    let html = '';
+    if (pHits.length) {
+        html += `<div class="srch-group-label">Produtos</div>` +
+            pHits.map(p => `
+                <div class="srch-item" onclick="openProductModal('${p._id}');hideSearch()">
+                    <i class="bi bi-box-seam text-success" style="flex-shrink:0"></i>
+                    <div>
+                        <div class="small fw-semibold">${highlight(p.name, query)}</div>
+                        <div style="font-size:.72rem;color:var(--muted)">${p.category} · ${fmtMoney(p.price)}</div>
+                    </div>
+                </div>`).join('');
+    }
+    if (oHits.length) {
+        html += `<div class="srch-group-label">Pedidos</div>` +
+            oHits.map(o => `
+                <div class="srch-item" onclick="showView('orders');openOrderDetail('${o._id}');hideSearch()">
+                    <i class="bi bi-bag-check text-warning" style="flex-shrink:0"></i>
+                    <div>
+                        <div class="small fw-semibold">#${o._id.slice(-6).toUpperCase()} · ${fmtMoney(o.total)}</div>
+                        <div style="font-size:.72rem;color:var(--muted)">${statusBadge(o.status)}</div>
+                    </div>
+                </div>`).join('');
+    }
+    if (mHits.length) {
+        html += `<div class="srch-group-label">Mensagens</div>` +
+            mHits.map(m => `
+                <div class="srch-item" onclick="showView('messages');openMessage('${m._id}');hideSearch()">
+                    <i class="bi bi-envelope text-primary" style="flex-shrink:0"></i>
+                    <div>
+                        <div class="small fw-semibold">${highlight(m.name, query)}</div>
+                        <div style="font-size:.72rem;color:var(--muted)">${escHtml(m.email)}</div>
+                    </div>
+                </div>`).join('');
+    }
+
+    el.innerHTML = html;
+    el.classList.remove('d-none');
+}
+
+function hideSearch() {
+    document.getElementById('search-results')?.classList.add('d-none');
+}
+
+function highlight(text, query) {
+    const safe = escHtml(text);
+    const re   = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+    return safe.replace(re, '<mark style="background:#fef08a;border-radius:2px;padding:0 1px">$1</mark>');
+}
+
+/* ---- Upload de imagem (ImgBB) ---- */
+async function handleImageUpload(input) {
+    const file = input?.files?.[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('upload-status');
+    if (statusEl) statusEl.textContent = 'Carregando...';
+
+    /* Lê chave ImgBB das configurações carregadas */
+    const settingsRes = await api('GET', '/settings');
+    const imgbbKey    = settingsRes?.data?.imgbbKey ?? '';
+
+    if (!imgbbKey) {
+        toast('Configure a chave ImgBB em Configurações antes de fazer upload.', 'warning');
+        if (statusEl) statusEl.textContent = '';
+        return;
+    }
+
+    try {
+        const base64  = await fileToBase64(file);
+        const formData = new FormData();
+        formData.append('image', base64.split(',')[1]);
+
+        const res  = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!data.success) throw new Error(data.error?.message ?? 'Falha no upload');
+
+        const url = data.data.url;
+        setVal('p-img', url);
+        previewImg();
+        toast('Imagem enviada com sucesso!', 'success');
+        if (statusEl) statusEl.textContent = '';
+    } catch (err) {
+        toast('Erro no upload: ' + String(err), 'danger');
+        if (statusEl) statusEl.textContent = '';
+    } finally {
+        input.value = '';
+    }
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+/* ---- Activity log ---- */
+async function loadActivity() {
+    tableLoading('activity-tbody', 4);
+    const res = await api('GET', '/activity?limit=100');
+    if (!res?.ok) return;
+    const logs = res.data ?? [];
+    const tbody = document.getElementById('activity-tbody');
+    if (!tbody) return;
+
+    if (!logs.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-5"><i class="bi bi-clock-history d-block fs-2 mb-2 opacity-25"></i>Nenhuma atividade registrada.</td></tr>';
+        return;
+    }
+
+    const icons = {
+        'Produto criado':          'bi-plus-circle text-success',
+        'Produto editado':         'bi-pencil text-primary',
+        'Status do pedido alterado': 'bi-bag-check text-warning',
+        'Login realizado':         'bi-box-arrow-in-right text-info',
+        'Configurações atualizadas': 'bi-gear text-secondary',
+    };
+
+    tbody.innerHTML = logs.map(l => `
+        <tr>
+            <td data-label="Data/Hora"><span class="text-muted small">${fmtDate(l.createdAt)}</span></td>
+            <td data-label="Admin"><span class="small">${escHtml(l.adminEmail)}</span></td>
+            <td data-label="Ação">
+                <i class="bi ${icons[l.action] ?? 'bi-activity text-muted'} me-1"></i>
+                <span class="small fw-semibold">${escHtml(l.action)}</span>
+            </td>
+            <td data-label="Detalhe"><span class="text-muted small">${escHtml(l.details)}</span></td>
+        </tr>`).join('');
 }
 
 /* ---- Confirm dialog ---- */
