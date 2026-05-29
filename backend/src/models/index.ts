@@ -284,3 +284,38 @@ stockMovementSchema.index({ createdAt: -1 });
 stockMovementSchema.index({ productId: 1, createdAt: -1 });
 
 export const StockMovement = model<IStockMovement>('StockMovement', stockMovementSchema);
+
+/* ============================================================
+   Expense — despesas/saídas financeiras da loja
+============================================================ */
+
+export type ExpenseCategory =
+  | 'Compra de mercadoria' | 'Aluguel' | 'Salários' | 'Contas (água/luz/internet)'
+  | 'Impostos e taxas' | 'Marketing' | 'Manutenção' | 'Transporte/Frete' | 'Outros';
+
+export interface IExpense extends Document {
+  description: string;
+  category:    ExpenseCategory;
+  amount:      number;
+  date:        Date;
+  notes:       string;
+  adminEmail:  string;
+  createdAt:   Date;
+  updatedAt:   Date;
+}
+
+const expenseSchema = new Schema<IExpense>({
+  description: { type: String, required: true, trim: true, maxlength: 160 },
+  category:    { type: String, required: true, enum: [
+    'Compra de mercadoria','Aluguel','Salários','Contas (água/luz/internet)',
+    'Impostos e taxas','Marketing','Manutenção','Transporte/Frete','Outros',
+  ] },
+  amount:      { type: Number, required: true, min: 0 },
+  date:        { type: Date, required: true },
+  notes:       { type: String, default: '', maxlength: 300 },
+  adminEmail:  { type: String, default: '' },
+}, { timestamps: true });
+
+expenseSchema.index({ date: -1 });
+
+export const Expense = model<IExpense>('Expense', expenseSchema);

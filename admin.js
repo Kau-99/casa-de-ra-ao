@@ -121,11 +121,11 @@ async function showApp() {
 /* ---- Router ---- */
 function showView(view) {
     closeSidebar();
-    ['dashboard','products','orders','messages','financeiro','estoque','activity','newsletter','settings'].forEach(v => {
+    ['dashboard','products','orders','messages','financeiro','despesas','estoque','activity','newsletter','settings'].forEach(v => {
         document.getElementById('view-' + v)?.classList.toggle('d-none', v !== view);
         document.getElementById('nav-'  + v)?.classList.toggle('active', v === view);
     });
-    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', financeiro:'Financeiro', estoque:'Estoque', activity:'Log de Atividades', newsletter:'Newsletter', settings:'Configurações' };
+    const titles = { dashboard:'Dashboard', products:'Produtos', orders:'Pedidos', messages:'Mensagens', financeiro:'Financeiro', despesas:'Despesas', estoque:'Estoque', activity:'Log de Atividades', newsletter:'Newsletter', settings:'Configurações' };
     setText('topbar-title', titles[view] ?? '');
 
     if (view === 'dashboard') loadDashboard();
@@ -133,6 +133,7 @@ function showView(view) {
     if (view === 'orders')    loadOrders();
     if (view === 'messages')  loadMessages();
     if (view === 'financeiro') loadFinanceiro();
+    if (view === 'despesas')   loadDespesas();
     if (view === 'estoque')    loadEstoque();
     if (view === 'activity')   loadActivity();
     if (view === 'newsletter') loadNewsletter();
@@ -1563,6 +1564,306 @@ function printFinanceiro() {
         <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
     </body></html>`);
     win.document.close();
+}
+
+/* ======================================================
+   DESPESAS
+====================================================== */
+const EXPENSE_CATEGORIES = [
+    'Compra de mercadoria','Aluguel','Salários','Contas (água/luz/internet)',
+    'Impostos e taxas','Marketing','Manutenção','Transporte/Frete','Outros',
+];
+let expenses     = [];
+let expenseYear  = new Date().getFullYear();
+
+function fillYearSelect(id, selected) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = new Date().getFullYear();
+    let html = '';
+    for (let y = cur; y >= cur - 5; y--) html += `<option value="${y}" ${y === selected ? 'selected' : ''}>${y}</option>`;
+    el.innerHTML = html;
+}
+
+async function loadDespesas() {
+    /* Popula selects de ano e categoria (uma vez) */
+    fillYearSelect('exp-year', expenseYear);
+    const catFilter = document.getElementById('exp-cat-filter');
+    if (catFilter && catFilter.options.length <= 1) {
+        catFilter.innerHTML = '<option value="">Todas categorias</option>' +
+            EXPENSE_CATEGORIES.map(c => `<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
+    }
+
+    expenseYear = Number(document.getElementById('exp-year')?.value ?? new Date().getFullYear());
+    tableLoading('despesas-tbody', 5);
+
+    /* Carrega despesas do ano + pedidos para calcular lucro */
+    const [eRes, oRes] = await Promise.all([
+        api('GET', `/expenses?year=${expenseYear}`),
+        finOrders.length ? Promise.resolve({ ok: true, data: { orders: finOrders } }) : api('GET', '/orders?limit=2000'),
+    ]);
+
+    if (!eRes?.ok) return;
+    expenses = eRes.data ?? [];
+    if (oRes?.ok && !finOrders.length) finOrders = oRes.data.orders ?? [];
+
+    /* Resumo do ano */
+    const now       = new Date();
+    const totalAno  = expenses.reduce((s, e) => s + e.amount, 0);
+    const mesAtual  = (expenseYear === now.getFullYear()) ? now.getMonth() : null;
+    const totalMes  = mesAtual !== null
+        ? expenses.filter(e => new Date(e.date).getMonth() === mesAtual).reduce((s, e) => s + e.amount, 0)
+        : 0;
+
+    const receitaAno = finOrders
+        .filter(o => o.status !== 'cancelled' && new Date(o.createdAt).getFullYear() === expenseYear)
+        .reduce((s, o) => s + o.total, 0);
+    const lucroAno = receitaAno - totalAno;
+
+    setText('exp-total-ano', fmtMoney(totalAno));
+    setText('exp-total-mes', mesAtual !== null ? fmtMoney(totalMes) : '—');
+    setText('exp-receita-ano', fmtMoney(receitaAno));
+    const lucroEl = document.getElementById('exp-lucro-ano');
+    if (lucroEl) { setText('exp-lucro-ano', fmtMoney(lucroAno)); lucroEl.style.color = lucroAno >= 0 ? '#16a34a' : '#e53935'; }
+
+    renderDespesas();
+}
+
+function renderDespesas() {
+    const catF = document.getElementById('exp-cat-filter')?.value ?? '';
+    const list = catF ? expenses.filter(e => e.category === catF) : expenses;
+    const tbody = document.getElementById('despesas-tbody');
+    if (!tbody) return;
+
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5"><i class="bi bi-cash-coin d-block fs-2 mb-2 opacity-25"></i>Nenhuma despesa registrada neste ano.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = list.map(e => `
+        <tr style="cursor:pointer" onclick="openExpenseModal('${e._id}')">
+            <td data-label="Data"><span class="small text-muted">${new Date(e.date).toLocaleDateString('pt-BR')}</span></td>
+            <td data-label="Descrição"><span class="small fw-semibold">${escHtml(e.description)}</span></td>
+            <td data-label="Categoria"><span class="badge bg-secondary-subtle text-secondary rounded-pill" style="font-size:.68rem">${escHtml(e.category)}</span></td>
+            <td data-label="Valor"><span class="small fw-semibold text-danger">- ${fmtMoney(e.amount)}</span></td>
+            <td data-label="Ações" onclick="event.stopPropagation()">
+                <button class="btn btn-sm btn-outline-secondary" onclick="openExpenseModal('${e._id}')"><i class="bi bi-pencil"></i></button>
+            </td>
+        </tr>`).join('');
+}
+
+function openExpenseModal(id) {
+    const errEl = document.getElementById('exp-error');
+    errEl?.classList.add('d-none');
+    const delBtn = document.getElementById('btn-del-expense');
+
+    if (id) {
+        const e = expenses.find(x => x._id === id);
+        if (!e) return;
+        setText('expense-modal-title', 'Editar despesa');
+        setVal('exp-id', e._id);
+        setVal('exp-desc', e.description);
+        setVal('exp-category', e.category);
+        setVal('exp-amount', e.amount);
+        setVal('exp-date', new Date(e.date).toISOString().slice(0, 10));
+        setVal('exp-notes', e.notes ?? '');
+        delBtn?.classList.remove('d-none');
+    } else {
+        setText('expense-modal-title', 'Nova despesa');
+        setVal('exp-id', '');
+        setVal('exp-desc', ''); setVal('exp-category', ''); setVal('exp-amount', '');
+        setVal('exp-date', new Date().toISOString().slice(0, 10));
+        setVal('exp-notes', '');
+        delBtn?.classList.add('d-none');
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('expenseModal')).show();
+}
+
+async function saveExpense() {
+    const id    = document.getElementById('exp-id')?.value ?? '';
+    const errEl = document.getElementById('exp-error');
+    errEl?.classList.add('d-none');
+
+    const body = {
+        description: (document.getElementById('exp-desc')?.value ?? '').trim(),
+        category:    document.getElementById('exp-category')?.value ?? '',
+        amount:      parseFloat(document.getElementById('exp-amount')?.value ?? ''),
+        date:        document.getElementById('exp-date')?.value ?? '',
+        notes:       (document.getElementById('exp-notes')?.value ?? '').trim(),
+    };
+
+    if (!body.description || !body.category || !body.amount || body.amount <= 0 || !body.date) {
+        if (errEl) { errEl.textContent = 'Preencha descrição, categoria, valor e data.'; errEl.classList.remove('d-none'); }
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-expense');
+    setBtnLoading(btn, true, 'Salvando...');
+    const res = await api(id ? 'PUT' : 'POST', id ? '/expenses/' + id : '/expenses', body);
+    setBtnLoading(btn, false, '<i class="bi bi-check-lg me-1"></i>Salvar');
+
+    if (!res?.ok) {
+        if (errEl) { errEl.textContent = res?.data?.error ?? 'Erro ao salvar despesa.'; errEl.classList.remove('d-none'); }
+        return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('expenseModal'))?.hide();
+    toast(id ? 'Despesa atualizada!' : 'Despesa registrada!', 'success');
+    loadDespesas();
+}
+
+async function deleteExpense() {
+    const id = document.getElementById('exp-id')?.value ?? '';
+    if (!id) return;
+    const ok = await showConfirm('Excluir esta despesa?', 'Esta ação não pode ser desfeita.');
+    if (!ok) return;
+    const res = await api('DELETE', '/expenses/' + id);
+    if (res?.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('expenseModal'))?.hide();
+        toast('Despesa removida.', 'success');
+        loadDespesas();
+    } else toast(res?.data?.error ?? 'Erro ao excluir.', 'danger');
+}
+
+/* ======================================================
+   RELATÓRIO ANUAL (DRE para imposto de renda)
+====================================================== */
+function openAnnualReport() {
+    fillYearSelect('annual-year', new Date().getFullYear());
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('annualModal')).show();
+}
+
+async function generateAnnualReport() {
+    const year = Number(document.getElementById('annual-year')?.value ?? new Date().getFullYear());
+
+    /* Garante dados carregados */
+    if (!finOrders.length) {
+        const oRes = await api('GET', '/orders?limit=2000');
+        if (oRes?.ok) finOrders = oRes.data.orders ?? [];
+    }
+    const eRes = await api('GET', `/expenses?year=${year}`);
+    const yearExpenses = eRes?.ok ? (eRes.data ?? []) : [];
+
+    bootstrap.Modal.getInstance(document.getElementById('annualModal'))?.hide();
+
+    const MES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    /* Receita por mês (pedidos não cancelados) */
+    const ordersYear = finOrders.filter(o => o.status !== 'cancelled' && new Date(o.createdAt).getFullYear() === year);
+
+    const monthly = MES.map((nome, m) => {
+        const receita = ordersYear.filter(o => new Date(o.createdAt).getMonth() === m).reduce((s, o) => s + o.total, 0);
+        const despesa = yearExpenses.filter(e => new Date(e.date).getMonth() === m).reduce((s, e) => s + e.amount, 0);
+        return { nome, receita, despesa, lucro: receita - despesa };
+    });
+
+    const totReceita = monthly.reduce((s, m) => s + m.receita, 0);
+    const totDespesa = monthly.reduce((s, m) => s + m.despesa, 0);
+    const totLucro   = totReceita - totDespesa;
+    const margem     = totReceita > 0 ? (totLucro / totReceita) * 100 : 0;
+
+    /* Despesas por categoria */
+    const byCat = {};
+    yearExpenses.forEach(e => { byCat[e.category] = (byCat[e.category] ?? 0) + e.amount; });
+
+    /* Receita por forma de pagamento */
+    const byPay = {};
+    ordersYear.forEach(o => { byPay[o.payment] = (byPay[o.payment] ?? 0) + o.total; });
+
+    const brl = n => fmtMoney(n);
+    const cls = n => n >= 0 ? 'pos' : 'neg';
+
+    const monthlyRows = monthly.map(m => `
+        <tr>
+            <td>${m.nome}</td>
+            <td class="num pos">${brl(m.receita)}</td>
+            <td class="num neg">${m.despesa > 0 ? '- ' + brl(m.despesa) : '—'}</td>
+            <td class="num ${cls(m.lucro)}"><strong>${brl(m.lucro)}</strong></td>
+        </tr>`).join('');
+
+    const catRows = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+        <tr><td>${escHtml(k)}</td><td class="num">${brl(v)}</td>
+        <td class="num">${totDespesa > 0 ? ((v / totDespesa) * 100).toFixed(1) : 0}%</td></tr>`).join('')
+        || '<tr><td colspan="3" style="text-align:center;color:#999">Nenhuma despesa registrada</td></tr>';
+
+    const payRows = Object.entries(byPay).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+        <tr><td>${escHtml(k)}</td><td class="num">${brl(v)}</td>
+        <td class="num">${totReceita > 0 ? ((v / totReceita) * 100).toFixed(1) : 0}%</td></tr>`).join('')
+        || '<tr><td colspan="3" style="text-align:center;color:#999">Nenhuma receita registrada</td></tr>';
+
+    const storeName = (typeof storeConfig !== 'undefined' && storeConfig.storeName) ? storeConfig.storeName : 'Helvinho Rações';
+
+    const win = window.open('', '_blank', 'width=820,height=1000');
+    if (!win) { toast('Permita popups para gerar o relatório.', 'warning'); return; }
+    win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+        <title>Relatório Anual ${year} — ${escHtml(storeName)}</title>
+        <style>
+            *{margin:0;padding:0;box-sizing:border-box}
+            body{font-family:'Segoe UI',Arial,sans-serif;padding:36px 40px;color:#1a202c;font-size:13px}
+            .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #2d9e5f;padding-bottom:14px;margin-bottom:6px}
+            h1{font-size:22px;color:#2d9e5f}
+            .head .doc{font-size:13px;font-weight:700;color:#1a3d2b;text-align:right}
+            .head .doc small{display:block;font-weight:400;color:#888;font-size:11px}
+            .ano{font-size:30px;font-weight:800;color:#1a3d2b;letter-spacing:1px;margin:16px 0}
+            h2{font-size:14px;margin:24px 0 8px;padding-bottom:5px;border-bottom:2px solid #e5e7eb;color:#1a3d2b}
+            .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+            .card{border:1px solid #e5e7eb;border-radius:10px;padding:14px}
+            .card .lbl{font-size:10px;text-transform:uppercase;color:#888;letter-spacing:.04em;font-weight:700}
+            .card .val{font-size:17px;font-weight:800;margin-top:5px}
+            table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px}
+            th{background:#f5f7fa;text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;color:#666;border-bottom:2px solid #ddd}
+            td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
+            .num{text-align:right;font-variant-numeric:tabular-nums}
+            .pos{color:#16a34a}.neg{color:#dc2626}
+            tfoot td{border-top:2px solid #1a3d2b;font-weight:800;font-size:13px;background:#f0f9f4}
+            .green{color:#16a34a}.red{color:#dc2626}.dark{color:#1a3d2b}
+            .disclaimer{margin-top:26px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:11px;color:#92400e}
+            .footer{margin-top:22px;text-align:center;color:#aaa;font-size:11px}
+            .btn-print{margin-top:24px;padding:11px 28px;background:#2d9e5f;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+            @media print{.btn-print{display:none}body{padding:20px}}
+        </style></head><body>
+        <div class="head">
+            <div><h1>🐾 ${escHtml(storeName)}</h1></div>
+            <div class="doc">DEMONSTRATIVO ANUAL<small>Entradas, Saídas e Lucro</small><small>Emitido em ${new Date().toLocaleDateString('pt-BR')}</small></div>
+        </div>
+        <div class="ano">Exercício ${year}</div>
+
+        <div class="cards">
+            <div class="card"><div class="lbl">Total de Entradas</div><div class="val green">${brl(totReceita)}</div></div>
+            <div class="card"><div class="lbl">Total de Saídas</div><div class="val red">${brl(totDespesa)}</div></div>
+            <div class="card"><div class="lbl">Lucro Líquido</div><div class="val ${totLucro >= 0 ? 'green' : 'red'}">${brl(totLucro)}</div></div>
+            <div class="card"><div class="lbl">Margem de Lucro</div><div class="val dark">${margem.toFixed(1)}%</div></div>
+        </div>
+
+        <h2>Demonstrativo Mensal</h2>
+        <table>
+            <thead><tr><th>Mês</th><th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Lucro</th></tr></thead>
+            <tbody>${monthlyRows}</tbody>
+            <tfoot><tr><td>TOTAL ${year}</td><td class="num green">${brl(totReceita)}</td><td class="num red">- ${brl(totDespesa)}</td><td class="num ${totLucro >= 0 ? 'green' : 'red'}">${brl(totLucro)}</td></tr></tfoot>
+        </table>
+
+        <h2>Entradas por Forma de Pagamento</h2>
+        <table>
+            <thead><tr><th>Forma</th><th class="num">Valor</th><th class="num">% do total</th></tr></thead>
+            <tbody>${payRows}</tbody>
+        </table>
+
+        <h2>Saídas por Categoria</h2>
+        <table>
+            <thead><tr><th>Categoria</th><th class="num">Valor</th><th class="num">% do total</th></tr></thead>
+            <tbody>${catRows}</tbody>
+        </table>
+
+        <div class="disclaimer">
+            <strong>⚠️ Aviso:</strong> Este é um relatório gerencial gerado automaticamente a partir dos pedidos e despesas
+            registrados no sistema. Não substitui a escrituração contábil oficial. Para a Declaração de Imposto de Renda,
+            consulte seu contador e utilize os documentos fiscais (notas fiscais) como base oficial.
+        </div>
+
+        <div class="footer">${escHtml(storeName)} — Demonstrativo gerado pelo painel administrativo</div>
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar como PDF</button>
+    </body></html>`);
+    win.document.close();
+    toast('Relatório anual gerado!', 'success');
 }
 
 /* ======================================================

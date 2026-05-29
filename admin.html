@@ -376,6 +376,7 @@
             </button>
             <div class="sb-sect">Gestão</div>
             <button class="sb-btn" id="nav-financeiro" onclick="showView('financeiro')"><i class="bi bi-graph-up-arrow"></i>Financeiro</button>
+            <button class="sb-btn" id="nav-despesas"   onclick="showView('despesas')"><i class="bi bi-cash-coin"></i>Despesas</button>
             <button class="sb-btn" id="nav-estoque"    onclick="showView('estoque')"><i class="bi bi-boxes"></i>Estoque</button>
             <div class="sb-sect">Loja</div>
             <button class="sb-btn" id="nav-newsletter" onclick="showView('newsletter')"><i class="bi bi-envelope-heart"></i>Newsletter</button>
@@ -645,8 +646,9 @@
                             <input type="date" id="fin-date-start" class="form-control form-control-sm" style="width:140px" onchange="setFinPeriod('custom')">
                             <span class="text-muted small">até</span>
                             <input type="date" id="fin-date-end" class="form-control form-control-sm" style="width:140px" onchange="setFinPeriod('custom')">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="printFinanceiro()" title="Imprimir relatório"><i class="bi bi-printer"></i></button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="printFinanceiro()" title="Imprimir relatório do período"><i class="bi bi-printer"></i></button>
                             <button class="btn btn-sm btn-outline-success fw-semibold" onclick="exportFinanceiroCSV()"><i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV</button>
+                            <button class="btn btn-sm fw-semibold" style="background:#1a3d2b;color:#fff" onclick="openAnnualReport()" title="Relatório anual para imposto de renda"><i class="bi bi-file-earmark-pdf me-1"></i>Relatório Anual</button>
                         </div>
                     </div>
                     <div class="px-3 py-2 small text-muted" id="fin-period-label" style="border-top:1px solid var(--border)"></div>
@@ -778,6 +780,60 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== DESPESAS ===== -->
+            <div id="view-despesas" class="d-none">
+                <!-- Resumo do mês/ano -->
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fce4ec;color:#e53935"><i class="bi bi-arrow-down-circle"></i></div>
+                            <div><div class="stat-val" id="exp-total-ano">—</div><div class="stat-label">Despesas no ano</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#fff3e0;color:#ff6b35"><i class="bi bi-calendar-month"></i></div>
+                            <div><div class="stat-val" id="exp-total-mes">—</div><div class="stat-label">Despesas no mês</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e8f5ee;color:#2d9e5f"><i class="bi bi-graph-up"></i></div>
+                            <div><div class="stat-val" id="exp-receita-ano">—</div><div class="stat-label">Receita no ano</div></div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-xl-3">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background:#e8f0fe;color:#4285f4"><i class="bi bi-wallet2"></i></div>
+                            <div><div class="stat-val" id="exp-lucro-ano">—</div><div class="stat-label">Lucro no ano</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="c-card">
+                    <div class="c-head">
+                        <h6>Despesas registradas</h6>
+                        <div class="d-flex gap-2 flex-wrap align-items-center">
+                            <select id="exp-year" class="form-select form-select-sm" style="width:100px" onchange="loadDespesas()"></select>
+                            <select id="exp-cat-filter" class="form-select form-select-sm" style="width:170px" onchange="renderDespesas()">
+                                <option value="">Todas categorias</option>
+                            </select>
+                            <button class="btn btn-success btn-sm fw-semibold" onclick="openExpenseModal(null)">
+                                <i class="bi bi-plus-lg me-1"></i>Nova despesa
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover c-table mb-0">
+                            <thead class="table-light">
+                                <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th style="width:90px"></th></tr>
+                            </thead>
+                            <tbody id="despesas-tbody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1202,6 +1258,90 @@
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-success fw-semibold px-4" id="btn-confirm-stock" onclick="confirmStockAdjust()">
                     <i class="bi bi-check-lg me-1"></i>Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EXPENSE MODAL -->
+<div class="modal fade" id="expenseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold" id="expense-modal-title">Nova despesa</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="exp-id">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Descrição *</label>
+                        <input type="text" id="exp-desc" class="form-control" placeholder="Ex: Compra de ração — fornecedor X">
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Categoria *</label>
+                        <select id="exp-category" class="form-select">
+                            <option value="">Selecionar...</option>
+                            <option value="Compra de mercadoria">Compra de mercadoria</option>
+                            <option value="Aluguel">Aluguel</option>
+                            <option value="Salários">Salários</option>
+                            <option value="Contas (água/luz/internet)">Contas (água/luz/internet)</option>
+                            <option value="Impostos e taxas">Impostos e taxas</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Manutenção">Manutenção</option>
+                            <option value="Transporte/Frete">Transporte/Frete</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Valor *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">R$</span>
+                            <input type="number" id="exp-amount" class="form-control" step="0.01" min="0.01" placeholder="0,00">
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Data *</label>
+                        <input type="date" id="exp-date" class="form-control">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Observações <small class="fw-normal text-muted">(opcional)</small></label>
+                        <input type="text" id="exp-notes" class="form-control" placeholder="Nota fiscal, fornecedor, etc.">
+                    </div>
+                </div>
+                <div id="exp-error" class="alert alert-danger mt-3 py-2 small d-none"></div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-danger me-auto d-none" id="btn-del-expense" onclick="deleteExpense()">
+                    <i class="bi bi-trash me-1"></i>Excluir
+                </button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success fw-semibold px-4" id="btn-save-expense" onclick="saveExpense()">
+                    <i class="bi bi-check-lg me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ANNUAL REPORT MODAL -->
+<div class="modal fade" id="annualModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>Relatório Anual</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Demonstrativo de entradas, saídas e lucro do ano — ideal para a declaração de imposto de renda.</p>
+                <label class="form-label">Ano de referência</label>
+                <select id="annual-year" class="form-select"></select>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger btn-sm fw-semibold" onclick="generateAnnualReport()">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Gerar relatório
                 </button>
             </div>
         </div>

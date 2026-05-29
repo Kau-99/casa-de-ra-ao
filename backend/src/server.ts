@@ -11,6 +11,7 @@ import contactRouter  from './routes/contact';
 import authRouter     from './routes/auth';
 import settingsRouter  from './routes/settings';
 import activityRouter  from './routes/activity';
+import expensesRouter  from './routes/expenses';
 import { Settings }   from './models';
 import { errorHandler, notFound } from './middleware/errorHandler';
 
@@ -79,6 +80,7 @@ app.use('/api/contact',  contactRouter);
 app.use('/api/auth',     authRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/activity', activityRouter);
+app.use('/api/expenses', expensesRouter);
 
 /* ---- Erros ---- */
 app.use(notFound);
