@@ -1061,60 +1061,183 @@ async function saveSettings() {
 /* ======================================================
    FINANCEIRO
 ====================================================== */
-let finMonthlyChart = null;
-let finPaymentChart = null;
-let finCatChart     = null;
-let finOrders       = [];
+let finEvolutionChart = null;
+let finPaymentChart   = null;
+let finCatChart       = null;
+let finDeliveryChart  = null;
+let finOrders         = [];
+let finPeriod         = '30d';
 
 async function loadFinanceiro() {
     const res = await api('GET', '/orders?limit=2000');
     if (!res?.ok) return;
     finOrders = res.data.orders ?? [];
+    if (!products.length) {
+        const pRes = await api('GET', '/products?limit=200');
+        if (pRes?.ok) products = pRes.data.items ?? [];
+    }
+    renderFinanceiro();
+}
+
+/* Resolve o intervalo [start,end] e o período anterior equivalente para comparação */
+function finPeriodRange(period) {
+    const now = new Date();
+    let start, end = new Date(now), prevStart, prevEnd, label;
+
+    if (period === 'today') {
+        start = new Date(now); start.setHours(0,0,0,0);
+        prevStart = new Date(start); prevStart.setDate(prevStart.getDate() - 1);
+        prevEnd   = new Date(start); prevEnd.setMilliseconds(-1);
+        label = 'Hoje';
+    } else if (period === '7d') {
+        start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0,0,0,0);
+        prevStart = new Date(start); prevStart.setDate(prevStart.getDate() - 7);
+        prevEnd   = new Date(start); prevEnd.setMilliseconds(-1);
+        label = 'Últimos 7 dias';
+    } else if (period === '30d') {
+        start = new Date(now); start.setDate(start.getDate() - 29); start.setHours(0,0,0,0);
+        prevStart = new Date(start); prevStart.setDate(prevStart.getDate() - 30);
+        prevEnd   = new Date(start); prevEnd.setMilliseconds(-1);
+        label = 'Últimos 30 dias';
+    } else if (period === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        prevEnd   = new Date(start); prevEnd.setMilliseconds(-1);
+        label = 'Este mês — ' + start.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    } else if (period === 'year') {
+        start = new Date(now.getFullYear(), 0, 1);
+        prevStart = new Date(now.getFullYear() - 1, 0, 1);
+        prevEnd   = new Date(start); prevEnd.setMilliseconds(-1);
+        label = 'Este ano — ' + now.getFullYear();
+    } else if (period === 'custom') {
+        const s = document.getElementById('fin-date-start')?.value;
+        const e = document.getElementById('fin-date-end')?.value;
+        start = s ? new Date(s + 'T00:00:00') : new Date(now.getFullYear(), now.getMonth(), 1);
+        end   = e ? new Date(e + 'T23:59:59') : new Date(now);
+        const dur = end - start;
+        prevEnd   = new Date(start); prevEnd.setMilliseconds(-1);
+        prevStart = new Date(start - dur);
+        label = `${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')}`;
+    } else { /* all */
+        start = new Date(2000, 0, 1);
+        prevStart = null; prevEnd = null;
+        label = 'Todo o período';
+    }
+    return { start, end, prevStart, prevEnd, label };
+}
+
+function setFinPeriod(period) {
+    finPeriod = period;
+    document.querySelectorAll('#fin-period-group button').forEach(b => {
+        b.classList.toggle('active', b.dataset.period === period);
+    });
     renderFinanceiro();
 }
 
 function renderFinanceiro() {
-    const all    = finOrders;
-    const valid  = all.filter(o => o.status !== 'cancelled');
-    const now    = new Date();
-    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const { start, end, prevStart, prevEnd, label } = finPeriodRange(finPeriod);
+    setText('fin-period-label', `Período: ${label}`);
 
-    const curMon    = valid.filter(o => new Date(o.createdAt) >= curStart);
-    const pending   = all.filter(o => ['pending','confirmed','preparing','ready'].includes(o.status));
-    const total     = valid.reduce((s, o) => s + o.total, 0);
-    const mesFat    = curMon.reduce((s, o) => s + o.total, 0);
-    const pendFat   = pending.reduce((s, o) => s + o.total, 0);
-    const ticket    = valid.length ? total / valid.length : 0;
+    const inRange = (o, s, e) => { const d = new Date(o.createdAt); return d >= s && d <= e; };
 
-    setText('fin-total',    fmtMoney(total));
-    setText('fin-mes',      fmtMoney(mesFat));
-    setText('fin-pendente', fmtMoney(pendFat));
-    setText('fin-ticket',   fmtMoney(ticket));
+    /* Pedidos do período (todos e válidos) */
+    const periodAll = finOrders.filter(o => inRange(o, start, end));
+    const valid     = periodAll.filter(o => o.status !== 'cancelled');
+    const cancelled = periodAll.filter(o => o.status === 'cancelled');
+    const realized  = periodAll.filter(o => o.status === 'delivered');
+    const pending   = periodAll.filter(o => ['pending','confirmed','preparing','ready'].includes(o.status));
 
-    /* Últimos 6 meses */
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-        const s = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const e = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
-        const mo = valid.filter(o => { const d = new Date(o.createdAt); return d >= s && d <= e; });
-        months.push({
-            label: s.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
-            revenue: mo.reduce((s2, o) => s2 + o.total, 0),
-            count:   mo.length,
-        });
+    const revenue   = valid.reduce((s, o) => s + o.total, 0);
+    const count     = valid.length;
+    const ticket    = count ? revenue / count : 0;
+    const itemsQty  = valid.reduce((s, o) => s + o.items.reduce((a, i) => a + i.qty, 0), 0);
+
+    /* Período anterior para comparação */
+    let prevRevenue = null, prevCount = null, prevTicket = null;
+    if (prevStart && prevEnd) {
+        const prevValid = finOrders.filter(o => o.status !== 'cancelled' && inRange(o, prevStart, prevEnd));
+        prevRevenue = prevValid.reduce((s, o) => s + o.total, 0);
+        prevCount   = prevValid.length;
+        prevTicket  = prevCount ? prevRevenue / prevCount : 0;
     }
 
-    /* Por forma de pagamento */
-    const byPay = {};
-    valid.forEach(o => { byPay[o.payment] = (byPay[o.payment] ?? 0) + o.total; });
+    setText('fin-revenue', fmtMoney(revenue));
+    setText('fin-count',   count);
+    setText('fin-ticket',  fmtMoney(ticket));
+    setText('fin-items',   itemsQty);
+    setText('fin-items-sub', `${count} pedido${count !== 1 ? 's' : ''} válido${count !== 1 ? 's' : ''}`);
 
-    /* Por categoria (via items + produtos) */
+    applyChange('fin-revenue-change', revenue, prevRevenue, true);
+    applyChange('fin-count-change',   count,   prevCount,   false);
+    applyChange('fin-ticket-change',  ticket,  prevTicket,  true);
+
+    /* Receita realizada / a receber / perdida */
+    const realizedRev = realized.reduce((s, o) => s + o.total, 0);
+    const pendingRev  = pending.reduce((s, o) => s + o.total, 0);
+    const lostRev     = cancelled.reduce((s, o) => s + o.total, 0);
+    setText('fin-realized', fmtMoney(realizedRev));
+    setText('fin-pending',  fmtMoney(pendingRev));
+    setText('fin-lost',     fmtMoney(lostRev));
+    setText('fin-realized-sub', `${realized.length} pedido${realized.length !== 1 ? 's' : ''} entregue${realized.length !== 1 ? 's' : ''}`);
+    setText('fin-pending-sub',  `${pending.length} em andamento`);
+    setText('fin-lost-sub',     `${cancelled.length} cancelado${cancelled.length !== 1 ? 's' : ''}`);
+
+    /* Evolução temporal — granularidade automática */
+    const dayMs   = 86400000;
+    const spanDays = Math.ceil((end - start) / dayMs);
+    const buckets = [];
+    if (finPeriod === 'all') {
+        /* Mensal desde o primeiro pedido */
+        const first = finOrders.length ? new Date(Math.min(...finOrders.map(o => +new Date(o.createdAt)))) : new Date();
+        let cur = new Date(first.getFullYear(), first.getMonth(), 1);
+        const last = new Date();
+        while (cur <= last) {
+            const bs = new Date(cur), be = new Date(cur.getFullYear(), cur.getMonth() + 1, 0, 23, 59, 59);
+            const mo = valid.filter(o => inRange(o, bs, be));
+            buckets.push({ label: bs.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), revenue: mo.reduce((s, o) => s + o.total, 0) });
+            cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        }
+    } else if (spanDays <= 31) {
+        for (let d = new Date(start); d <= end; d = new Date(+d + dayMs)) {
+            const bs = new Date(d); bs.setHours(0,0,0,0);
+            const be = new Date(d); be.setHours(23,59,59,999);
+            const day = valid.filter(o => inRange(o, bs, be));
+            buckets.push({ label: bs.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), revenue: day.reduce((s, o) => s + o.total, 0) });
+        }
+    } else {
+        let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+        while (cur <= end) {
+            const bs = new Date(cur), be = new Date(cur.getFullYear(), cur.getMonth() + 1, 0, 23, 59, 59);
+            const mo = valid.filter(o => inRange(o, bs, be));
+            buckets.push({ label: bs.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }), revenue: mo.reduce((s, o) => s + o.total, 0) });
+            cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        }
+    }
+    renderFinEvolutionChart(buckets);
+
+    /* Por forma de pagamento (com contagem) */
+    const byPay = {};
+    valid.forEach(o => {
+        if (!byPay[o.payment]) byPay[o.payment] = { total: 0, count: 0 };
+        byPay[o.payment].total += o.total;
+        byPay[o.payment].count += 1;
+    });
+    renderFinPaymentChart(byPay);
+    renderFinPaymentBreakdown(byPay, revenue);
+
+    /* Por categoria */
     const byCat = {};
     valid.forEach(o => o.items.forEach(i => {
         const prod = products.find(p => p._id === i.productId || p.name === i.name);
         const cat  = prod?.category ?? 'Outros';
         byCat[cat] = (byCat[cat] ?? 0) + i.price * i.qty;
     }));
+    renderFinCatChart(byCat);
+
+    /* Entrega x retirada */
+    const byDelivery = { Entrega: 0, Retirada: 0 };
+    valid.forEach(o => { byDelivery[o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'] += o.total; });
+    renderFinDeliveryChart(byDelivery);
 
     /* Top produtos */
     const byProd = {};
@@ -1123,50 +1246,119 @@ function renderFinanceiro() {
         byProd[i.name].qty += i.qty;
         byProd[i.name].rev += i.price * i.qty;
     }));
-    const topProds = Object.entries(byProd)
-        .sort((a, b) => b[1].rev - a[1].rev)
-        .slice(0, 5);
-
-    /* Renderiza charts */
-    renderFinMonthlyChart(months);
-    renderFinPaymentChart(byPay);
-    renderFinCatChart(byCat);
-
-    /* Top produtos table */
+    const topProds = Object.entries(byProd).sort((a, b) => b[1].rev - a[1].rev).slice(0, 5);
     const tbody = document.getElementById('fin-top-products');
     if (tbody) {
         tbody.innerHTML = !topProds.length
-            ? '<tr><td colspan="4" class="text-center text-muted py-3 small">Sem dados de vendas.</td></tr>'
+            ? '<tr><td colspan="4" class="text-center text-muted py-3 small">Sem dados de vendas no período.</td></tr>'
             : topProds.map(([name, d], i) => `
                 <tr>
                     <td><span class="badge bg-secondary-subtle text-secondary">${i + 1}°</span></td>
-                    <td class="small fw-semibold">${escHtml(name.length > 28 ? name.slice(0,28)+'…' : name)}</td>
-                    <td class="small text-muted">${d[1].qty} un.</td>
-                    <td class="small fw-semibold text-success">${fmtMoney(d[1].rev)}</td>
+                    <td data-label="Produto" class="small fw-semibold">${escHtml(name.length > 28 ? name.slice(0,28)+'…' : name)}</td>
+                    <td data-label="Vendas" class="small text-muted">${d.qty} un.</td>
+                    <td data-label="Receita" class="small fw-semibold text-success">${fmtMoney(d.rev)}</td>
                 </tr>`).join('');
     }
 }
 
-function renderFinMonthlyChart(months) {
-    const canvas = document.getElementById('fin-monthly-chart');
+/* Aplica indicador de variação % vs período anterior */
+function applyChange(id, current, previous, isMoney) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (previous === null) { el.textContent = ''; el.className = 'metric-change flat'; return; }
+    if (previous === 0) {
+        el.textContent = current > 0 ? '↑ novo no período' : 'sem dados anteriores';
+        el.className = 'metric-change ' + (current > 0 ? 'up' : 'flat');
+        return;
+    }
+    const pct = ((current - previous) / previous) * 100;
+    const arrow = pct >= 0 ? '↑' : '↓';
+    el.textContent = `${arrow} ${Math.abs(pct).toFixed(1)}% vs período anterior`;
+    el.className = 'metric-change ' + (pct >= 0 ? 'up' : 'down');
+}
+
+function renderFinEvolutionChart(buckets) {
+    const canvas = document.getElementById('fin-evolution-chart');
     if (!canvas) return;
-    if (finMonthlyChart) { finMonthlyChart.destroy(); finMonthlyChart = null; }
-    finMonthlyChart = new Chart(canvas, {
-        type: 'bar',
+    if (finEvolutionChart) { finEvolutionChart.destroy(); finEvolutionChart = null; }
+    const data = buckets.map(b => b.revenue);
+    const avg  = data.length ? data.reduce((s, v) => s + v, 0) / data.length : 0;
+    finEvolutionChart = new Chart(canvas, {
+        type: 'line',
         data: {
-            labels: months.map(m => m.label),
-            datasets: [{
-                label: 'Faturamento', data: months.map(m => m.revenue),
-                backgroundColor: 'rgba(45,158,95,.7)', borderColor: '#2d9e5f',
-                borderWidth: 1, borderRadius: 6,
-            }],
+            labels: buckets.map(b => b.label),
+            datasets: [
+                {
+                    label: 'Faturamento', data,
+                    borderColor: '#2d9e5f', backgroundColor: 'rgba(45,158,95,.1)',
+                    tension: 0.35, fill: true, pointBackgroundColor: '#2d9e5f', pointRadius: data.length > 31 ? 0 : 3,
+                },
+                {
+                    label: 'Média', data: data.map(() => avg),
+                    borderColor: '#9ca3af', borderDash: [6, 4], borderWidth: 1.5,
+                    pointRadius: 0, fill: false,
+                },
+            ],
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtMoney(c.raw) } } },
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmtMoney(c.raw)}` } } },
             scales: {
                 y: { beginAtZero: true, ticks: { callback: v => 'R$' + Number(v).toFixed(0), font: { size: 11 } }, grid: { color: '#f3f4f6' } },
-                x: { ticks: { font: { size: 11 } }, grid: { display: false } },
+                x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } },
+            },
+        },
+    });
+}
+
+function renderFinPaymentBreakdown(byPay, totalRev) {
+    const tbody = document.getElementById('fin-payment-breakdown');
+    if (!tbody) return;
+    const entries = Object.entries(byPay).sort((a, b) => b[1].total - a[1].total);
+    if (!entries.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3 small">Sem dados no período.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = entries.map(([k, v]) => {
+        const pct = totalRev > 0 ? (v.total / totalRev) * 100 : 0;
+        return `
+            <tr>
+                <td data-label="Forma" class="small fw-semibold">${escHtml(k)}</td>
+                <td data-label="Pedidos" class="small text-muted">${v.count}</td>
+                <td data-label="Receita" class="small fw-semibold">${fmtMoney(v.total)}</td>
+                <td data-label="%" class="small">
+                    <div class="d-flex align-items-center gap-2">
+                        <div style="flex:1;height:6px;background:var(--border);border-radius:3px;min-width:40px;overflow:hidden">
+                            <div style="width:${pct.toFixed(0)}%;height:100%;background:#2d9e5f"></div>
+                        </div>
+                        <span style="min-width:38px;text-align:right">${pct.toFixed(1)}%</span>
+                    </div>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function renderFinDeliveryChart(byDelivery) {
+    const canvas = document.getElementById('fin-delivery-chart');
+    if (!canvas) return;
+    if (finDeliveryChart) { finDeliveryChart.destroy(); finDeliveryChart = null; }
+    const entries = Object.entries(byDelivery).filter(([, v]) => v > 0);
+    if (!entries.length) return;
+    finDeliveryChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+            labels: entries.map(([k]) => k),
+            datasets: [{
+                data: entries.map(([, v]) => v),
+                backgroundColor: ['#4285f4', '#2d9e5f'],
+                borderWidth: 2, borderColor: '#fff',
+            }],
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '62%',
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
+                tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtMoney(c.raw)}` } },
             },
         },
     });
@@ -1183,13 +1375,13 @@ function renderFinPaymentChart(byPay) {
         data: {
             labels: entries.map(([k]) => k),
             datasets: [{
-                data: entries.map(([, v]) => v),
+                data: entries.map(([, v]) => v.total),
                 backgroundColor: ['#2d9e5f','#4285f4','#ff6b35','#fbbf24'],
                 borderWidth: 2, borderColor: '#fff',
             }],
         },
         options: {
-            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            responsive: true, maintainAspectRatio: false, cutout: '62%',
             plugins: {
                 legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
                 tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtMoney(c.raw)}` } },
@@ -1225,46 +1417,83 @@ function renderFinCatChart(byCat) {
     });
 }
 
-function exportFinanceiroCSV() {
-    const valid = finOrders.filter(o => o.status !== 'cancelled');
-    if (!valid.length) { toast('Nenhum dado para exportar.', 'warning'); return; }
+/* Métricas consolidadas do período atual — reutilizado por CSV e impressão */
+function finComputeReport() {
+    const { start, end, label } = finPeriodRange(finPeriod);
+    const inRange = o => { const d = new Date(o.createdAt); return d >= start && d <= end; };
+    const periodAll = finOrders.filter(inRange);
+    const valid     = periodAll.filter(o => o.status !== 'cancelled');
+    const cancelled = periodAll.filter(o => o.status === 'cancelled');
+    const realized  = periodAll.filter(o => o.status === 'delivered');
+    const pending   = periodAll.filter(o => ['pending','confirmed','preparing','ready'].includes(o.status));
 
-    const now    = new Date();
-    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const curMon = valid.filter(o => new Date(o.createdAt) >= curStart);
     const total  = valid.reduce((s, o) => s + o.total, 0);
-    const mesFat = curMon.reduce((s, o) => s + o.total, 0);
     const ticket = valid.length ? total / valid.length : 0;
+    const items  = valid.reduce((s, o) => s + o.items.reduce((a, i) => a + i.qty, 0), 0);
 
     const byPay = {};
-    valid.forEach(o => { byPay[o.payment] = (byPay[o.payment] ?? 0) + o.total; });
+    valid.forEach(o => {
+        if (!byPay[o.payment]) byPay[o.payment] = { total: 0, count: 0 };
+        byPay[o.payment].total += o.total; byPay[o.payment].count += 1;
+    });
+
+    const byCat = {};
+    valid.forEach(o => o.items.forEach(i => {
+        const prod = products.find(p => p._id === i.productId || p.name === i.name);
+        const cat  = prod?.category ?? 'Outros';
+        byCat[cat] = (byCat[cat] ?? 0) + i.price * i.qty;
+    }));
+
+    return {
+        label, valid, cancelled, realized, pending, total, ticket, items, byPay, byCat,
+        realizedRev: realized.reduce((s, o) => s + o.total, 0),
+        pendingRev:  pending.reduce((s, o) => s + o.total, 0),
+        lostRev:     cancelled.reduce((s, o) => s + o.total, 0),
+    };
+}
+
+function exportFinanceiroCSV() {
+    const r = finComputeReport();
+    if (!r.valid.length) { toast('Nenhum dado para exportar no período.', 'warning'); return; }
+    const brl = n => `R$${Number(n).toFixed(2).replace('.',',')}`;
+    const statusMap = { pending:'Pendente', confirmed:'Confirmado', preparing:'Preparando', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' };
 
     const rows = [
         ['RELATÓRIO FINANCEIRO — HELVINHO RAÇÕES'],
-        [`Gerado em: ${fmtDate(now.toISOString())}`],
+        [`Período: ${r.label}`],
+        [`Gerado em: ${fmtDate(new Date().toISOString())}`],
         [],
-        ['RESUMO'],
-        ['Faturamento total', `R$${total.toFixed(2).replace('.',',')}`],
-        ['Faturamento do mês', `R$${mesFat.toFixed(2).replace('.',',')}`],
-        ['Ticket médio', `R$${ticket.toFixed(2).replace('.',',')}`],
-        ['Total de pedidos', valid.length],
+        ['RESUMO EXECUTIVO'],
+        ['Faturamento (válido)', brl(r.total)],
+        ['Receita realizada (entregue)', brl(r.realizedRev)],
+        ['A receber (em andamento)', brl(r.pendingRev)],
+        ['Receita perdida (cancelados)', brl(r.lostRev)],
+        ['Ticket médio', brl(r.ticket)],
+        ['Total de pedidos válidos', r.valid.length],
+        ['Itens vendidos', r.items],
+        ['Pedidos cancelados', r.cancelled.length],
         [],
         ['POR FORMA DE PAGAMENTO'],
-        ...Object.entries(byPay).map(([k, v]) => [k, `R$${Number(v).toFixed(2).replace('.',',')}`]),
+        ['Forma','Pedidos','Receita','% do total'],
+        ...Object.entries(r.byPay).map(([k, v]) =>
+            [k, v.count, brl(v.total), `${r.total > 0 ? ((v.total / r.total) * 100).toFixed(1) : 0}%`]),
+        [],
+        ['POR CATEGORIA'],
+        ...Object.entries(r.byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, brl(v)]),
         [],
         ['PEDIDOS DETALHADOS'],
-        ['Nº Pedido','Data','Status','Total (R$)','Pagamento','Tipo Entrega'],
-        ...valid.map(o => [
+        ['Nº Pedido','Data','Status','Total','Pagamento','Tipo Entrega'],
+        ...r.valid.map(o => [
             '#' + o._id.slice(-6).toUpperCase(),
             fmtDate(o.createdAt),
-            { pending:'Pendente', confirmed:'Confirmado', preparing:'Preparando', ready:'Pronto', delivered:'Entregue', cancelled:'Cancelado' }[o.status] ?? o.status,
-            o.total.toFixed(2).replace('.',','),
+            statusMap[o.status] ?? o.status,
+            brl(o.total),
             o.payment,
             o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada',
         ]),
     ];
 
-    const csv = '﻿' + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(';')).join('\r\n');
+    const csv = '﻿' + rows.map(row => row.map(c => `"${String(c ?? '').replace(/"/g,'""')}"`).join(';')).join('\r\n');
     const today = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-');
     const blob  = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url   = URL.createObjectURL(blob);
@@ -1272,6 +1501,68 @@ function exportFinanceiroCSV() {
     a.href = url; a.download = `financeiro_helvinho_${today}.csv`; a.click();
     URL.revokeObjectURL(url);
     toast('Relatório financeiro exportado!', 'success');
+}
+
+function printFinanceiro() {
+    const r = finComputeReport();
+    if (!r.valid.length) { toast('Nenhum dado para imprimir no período.', 'warning'); return; }
+    const brl = n => fmtMoney(n);
+
+    const payRows = Object.entries(r.byPay).sort((a, b) => b[1].total - a[1].total).map(([k, v]) => `
+        <tr><td>${escHtml(k)}</td><td style="text-align:center">${v.count}</td>
+        <td style="text-align:right">${brl(v.total)}</td>
+        <td style="text-align:right">${r.total > 0 ? ((v.total / r.total) * 100).toFixed(1) : 0}%</td></tr>`).join('');
+
+    const catRows = Object.entries(r.byCat).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+        <tr><td>${escHtml(k)}</td><td style="text-align:right">${brl(v)}</td></tr>`).join('');
+
+    const win = window.open('', '_blank', 'width=800,height=900');
+    if (!win) { toast('Permita popups para imprimir.', 'warning'); return; }
+    win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+        <title>Relatório Financeiro — Helvinho Rações</title>
+        <style>
+            *{margin:0;padding:0;box-sizing:border-box}
+            body{font-family:'Segoe UI',Arial,sans-serif;padding:32px;color:#1a202c;font-size:13px}
+            h1{font-size:20px;color:#2d9e5f;margin-bottom:2px}
+            .sub{color:#666;font-size:12px;margin-bottom:20px}
+            .period{background:#e8f5ee;padding:8px 14px;border-radius:8px;font-weight:600;color:#1e7a47;display:inline-block;margin-bottom:20px}
+            h2{font-size:14px;margin:22px 0 8px;padding-bottom:5px;border-bottom:2px solid #2d9e5f;color:#1a3d2b}
+            .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px}
+            .kpi{border:1px solid #e5e7eb;border-radius:10px;padding:14px}
+            .kpi .lbl{font-size:10px;text-transform:uppercase;color:#888;letter-spacing:.05em;font-weight:700}
+            .kpi .val{font-size:18px;font-weight:700;margin-top:4px}
+            .green{color:#16a34a}.orange{color:#ff6b35}.red{color:#e53935}
+            table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px}
+            th{background:#f5f7fa;text-align:left;padding:7px 10px;font-size:10px;text-transform:uppercase;color:#666;border-bottom:1px solid #ddd}
+            td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
+            .footer{margin-top:30px;text-align:center;color:#aaa;font-size:11px}
+            .btn-print{margin-top:24px;padding:10px 24px;background:#2d9e5f;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px}
+            @media print{.btn-print{display:none}}
+        </style></head><body>
+        <h1>🐾 Helvinho Rações</h1>
+        <div class="sub">Relatório Financeiro · gerado em ${new Date().toLocaleString('pt-BR')}</div>
+        <div class="period">Período: ${escHtml(r.label)}</div>
+
+        <h2>Resumo Executivo</h2>
+        <div class="kpis">
+            <div class="kpi"><div class="lbl">Faturamento</div><div class="val">${brl(r.total)}</div></div>
+            <div class="kpi"><div class="lbl">Ticket médio</div><div class="val">${brl(r.ticket)}</div></div>
+            <div class="kpi"><div class="lbl">Pedidos válidos</div><div class="val">${r.valid.length}</div></div>
+            <div class="kpi"><div class="lbl">Receita realizada</div><div class="val green">${brl(r.realizedRev)}</div></div>
+            <div class="kpi"><div class="lbl">A receber</div><div class="val orange">${brl(r.pendingRev)}</div></div>
+            <div class="kpi"><div class="lbl">Receita perdida</div><div class="val red">${brl(r.lostRev)}</div></div>
+        </div>
+
+        <h2>Por Forma de Pagamento</h2>
+        <table><thead><tr><th>Forma</th><th style="text-align:center">Pedidos</th><th style="text-align:right">Receita</th><th style="text-align:right">%</th></tr></thead><tbody>${payRows}</tbody></table>
+
+        <h2>Por Categoria</h2>
+        <table><thead><tr><th>Categoria</th><th style="text-align:right">Receita</th></tr></thead><tbody>${catRows}</tbody></table>
+
+        <div class="footer">Helvinho Rações — Relatório gerado pelo painel administrativo</div>
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+    </body></html>`);
+    win.document.close();
 }
 
 /* ======================================================

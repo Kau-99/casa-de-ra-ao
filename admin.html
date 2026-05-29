@@ -630,60 +630,142 @@
 
             <!-- ===== FINANCEIRO ===== -->
             <div id="view-financeiro" class="d-none">
-                <!-- Cards de resumo -->
+                <!-- Barra de período + ações -->
+                <div class="c-card mb-3">
+                    <div class="c-head">
+                        <div class="btn-group btn-group-sm flex-wrap" id="fin-period-group">
+                            <button class="btn btn-outline-secondary" data-period="today" onclick="setFinPeriod('today')">Hoje</button>
+                            <button class="btn btn-outline-secondary" data-period="7d"    onclick="setFinPeriod('7d')">7 dias</button>
+                            <button class="btn btn-outline-secondary active" data-period="30d" onclick="setFinPeriod('30d')">30 dias</button>
+                            <button class="btn btn-outline-secondary" data-period="month" onclick="setFinPeriod('month')">Este mês</button>
+                            <button class="btn btn-outline-secondary" data-period="year"  onclick="setFinPeriod('year')">Este ano</button>
+                            <button class="btn btn-outline-secondary" data-period="all"   onclick="setFinPeriod('all')">Tudo</button>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap align-items-center">
+                            <input type="date" id="fin-date-start" class="form-control form-control-sm" style="width:140px" onchange="setFinPeriod('custom')">
+                            <span class="text-muted small">até</span>
+                            <input type="date" id="fin-date-end" class="form-control form-control-sm" style="width:140px" onchange="setFinPeriod('custom')">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="printFinanceiro()" title="Imprimir relatório"><i class="bi bi-printer"></i></button>
+                            <button class="btn btn-sm btn-outline-success fw-semibold" onclick="exportFinanceiroCSV()"><i class="bi bi-file-earmark-spreadsheet me-1"></i>CSV</button>
+                        </div>
+                    </div>
+                    <div class="px-3 py-2 small text-muted" id="fin-period-label" style="border-top:1px solid var(--border)"></div>
+                </div>
+
+                <!-- KPIs principais com comparação -->
                 <div class="row g-3 mb-3">
                     <div class="col-6 col-xl-3">
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background:#e8f5ee;color:#2d9e5f"><i class="bi bi-currency-dollar"></i></div>
-                            <div><div class="stat-val" id="fin-total">—</div><div class="stat-label">Faturamento total</div></div>
+                        <div class="metric-card h-100">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="metric-label">Faturamento</div>
+                                <i class="bi bi-cash-stack text-success"></i>
+                            </div>
+                            <div class="metric-val mt-1" id="fin-revenue">—</div>
+                            <div class="metric-change flat" id="fin-revenue-change"></div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background:#e8f0fe;color:#4285f4"><i class="bi bi-calendar-month"></i></div>
-                            <div><div class="stat-val" id="fin-mes">—</div><div class="stat-label">Faturamento do mês</div></div>
+                        <div class="metric-card h-100">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="metric-label">Pedidos</div>
+                                <i class="bi bi-bag-check text-primary"></i>
+                            </div>
+                            <div class="metric-val mt-1" id="fin-count">—</div>
+                            <div class="metric-change flat" id="fin-count-change"></div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background:#fff3e0;color:#ff6b35"><i class="bi bi-hourglass-split"></i></div>
-                            <div><div class="stat-val" id="fin-pendente">—</div><div class="stat-label">Receita pendente</div></div>
+                        <div class="metric-card h-100">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="metric-label">Ticket médio</div>
+                                <i class="bi bi-receipt text-warning"></i>
+                            </div>
+                            <div class="metric-val mt-1" id="fin-ticket">—</div>
+                            <div class="metric-change flat" id="fin-ticket-change"></div>
                         </div>
                     </div>
                     <div class="col-6 col-xl-3">
-                        <div class="stat-card">
-                            <div class="stat-icon" style="background:#fce4ec;color:#e53935"><i class="bi bi-receipt"></i></div>
-                            <div><div class="stat-val" id="fin-ticket">—</div><div class="stat-label">Ticket médio</div></div>
+                        <div class="metric-card h-100">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="metric-label">Itens vendidos</div>
+                                <i class="bi bi-box-seam text-info"></i>
+                            </div>
+                            <div class="metric-val mt-1" id="fin-items">—</div>
+                            <div class="metric-change flat" id="fin-items-sub"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Gráficos -->
+                <!-- Receita: realizada / a receber / perdida -->
                 <div class="row g-3 mb-3">
-                    <div class="col-lg-8">
-                        <div class="c-card">
-                            <div class="c-head">
-                                <h6>Faturamento mensal (últimos 6 meses)</h6>
-                                <button class="btn btn-sm btn-outline-success" onclick="exportFinanceiroCSV()">
-                                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar
-                                </button>
-                            </div>
-                            <div class="p-3" style="height:220px;position:relative"><canvas id="fin-monthly-chart"></canvas></div>
+                    <div class="col-12 col-lg-4">
+                        <div class="metric-card h-100" style="border-left:4px solid #16a34a">
+                            <div class="metric-label">Receita realizada</div>
+                            <div class="metric-val mt-1 text-success" id="fin-realized">—</div>
+                            <div class="metric-change flat" id="fin-realized-sub">pedidos entregues</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-4">
+                        <div class="metric-card h-100" style="border-left:4px solid #ff6b35">
+                            <div class="metric-label">A receber</div>
+                            <div class="metric-val mt-1" style="color:#ff6b35" id="fin-pending">—</div>
+                            <div class="metric-change flat" id="fin-pending-sub">em andamento</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-4">
+                        <div class="metric-card h-100" style="border-left:4px solid #e53935">
+                            <div class="metric-label">Receita perdida</div>
+                            <div class="metric-val mt-1 text-danger" id="fin-lost">—</div>
+                            <div class="metric-change flat" id="fin-lost-sub">pedidos cancelados</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evolução temporal -->
+                <div class="c-card mb-3">
+                    <div class="c-head">
+                        <h6 id="fin-evolution-title">Evolução do faturamento</h6>
+                        <div class="d-flex align-items-center gap-3 small">
+                            <span><i class="bi bi-square-fill text-success me-1" style="font-size:.6rem"></i>Faturamento</span>
+                            <span class="text-muted"><i class="bi bi-dash" style="font-weight:bold"></i> Média</span>
+                        </div>
+                    </div>
+                    <div class="p-3" style="height:260px;position:relative"><canvas id="fin-evolution-chart"></canvas></div>
+                </div>
+
+                <!-- Gráficos secundários -->
+                <div class="row g-3 mb-3">
+                    <div class="col-lg-4">
+                        <div class="c-card h-100">
+                            <div class="c-head"><h6>Forma de pagamento</h6></div>
+                            <div class="p-3" style="height:230px;position:relative"><canvas id="fin-payment-chart"></canvas></div>
                         </div>
                     </div>
                     <div class="col-lg-4">
-                        <div class="c-card">
-                            <div class="c-head"><h6>Por forma de pagamento</h6></div>
-                            <div class="p-3" style="height:220px;position:relative"><canvas id="fin-payment-chart"></canvas></div>
+                        <div class="c-card h-100">
+                            <div class="c-head"><h6>Receita por categoria</h6></div>
+                            <div class="p-3" style="height:230px;position:relative"><canvas id="fin-cat-chart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="c-card h-100">
+                            <div class="c-head"><h6>Entrega x Retirada</h6></div>
+                            <div class="p-3" style="height:230px;position:relative"><canvas id="fin-delivery-chart"></canvas></div>
                         </div>
                     </div>
                 </div>
 
+                <!-- Detalhamento por pagamento + top produtos -->
                 <div class="row g-3">
                     <div class="col-lg-6">
                         <div class="c-card">
-                            <div class="c-head"><h6>Receita por categoria</h6></div>
-                            <div class="p-3" style="height:200px;position:relative"><canvas id="fin-cat-chart"></canvas></div>
+                            <div class="c-head"><h6>Detalhamento por pagamento</h6></div>
+                            <div class="table-responsive">
+                                <table class="table c-table mb-0">
+                                    <thead class="table-light"><tr><th>Forma</th><th>Pedidos</th><th>Receita</th><th>%</th></tr></thead>
+                                    <tbody id="fin-payment-breakdown"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     <div class="col-lg-6">
