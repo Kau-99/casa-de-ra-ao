@@ -261,7 +261,7 @@ async function loadMetrics() {
     /* Produto mais vendido (por quantidade em todos os pedidos) */
     const qty = {};
     valid.forEach(o => o.items.forEach(i => { qty[i.name] = (qty[i.name] ?? 0) + i.qty; }));
-    const [bestName, bestQty] = Object.entries(qty).sort((a, b) => (b[1] as number) - (a[1] as number))[0] ?? ['—', 0];
+    const [bestName, bestQty] = Object.entries(qty).sort((a, b) => Number(b[1]) - Number(a[1]))[0] ?? ['—', 0];
 
     setText('metric-month',  fmtMoney(curTotal));
     setText('metric-ticket', fmtMoney(ticket));
