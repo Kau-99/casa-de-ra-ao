@@ -251,6 +251,30 @@
         .srch-item:hover { background: var(--primary-lt); }
         .srch-empty { padding: 20px 14px; text-align: center; color: var(--muted); font-size: .84rem; }
 
+        /* ======== GREETING + ACTION CENTER ======== */
+        .dash-greeting { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+        .dash-greeting h4 { font-weight:700; margin:0; }
+        .action-item {
+            display:flex; align-items:center; gap:14px;
+            padding:13px 14px; border-radius:10px; cursor:pointer;
+            transition:background .15s, transform .12s; text-decoration:none; color:inherit;
+        }
+        .action-item:hover { background:var(--bg); transform:translateX(3px); }
+        .action-item + .action-item { border-top:1px solid var(--border); }
+        .action-ico {
+            width:42px; height:42px; border-radius:11px; flex-shrink:0;
+            display:flex; align-items:center; justify-content:center; font-size:1.2rem;
+        }
+        .action-title { font-weight:600; font-size:.9rem; }
+        .action-sub   { font-size:.78rem; color:var(--muted); }
+        .action-count {
+            margin-left:auto; flex-shrink:0; font-weight:700; font-size:.95rem;
+            min-width:30px; height:30px; padding:0 9px; border-radius:8px;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .allclear { text-align:center; padding:30px 16px; }
+        .allclear .ic { font-size:2.4rem; color:#16a34a; }
+
         /* ======== METRICS ======== */
         .metric-card { background: var(--card-bg); border-radius: var(--radius); padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
         .metric-label { font-size: .72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
@@ -418,6 +442,28 @@
 
             <!-- ===== DASHBOARD ===== -->
             <div id="view-dashboard">
+                <!-- Saudação + ações rápidas -->
+                <div class="dash-greeting mb-3">
+                    <div>
+                        <h4 id="dash-greeting-text">Olá!</h4>
+                        <span class="text-muted small text-capitalize" id="dash-date"></span>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadDashboard()"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar</button>
+                        <button class="btn btn-sm btn-outline-success fw-semibold" onclick="openExpenseModal(null)"><i class="bi bi-cash-coin me-1"></i>Despesa</button>
+                        <button class="btn btn-sm btn-success fw-semibold" onclick="openProductModal(null)"><i class="bi bi-plus-lg me-1"></i>Novo produto</button>
+                    </div>
+                </div>
+
+                <!-- Central de ações -->
+                <div class="c-card mb-4">
+                    <div class="c-head">
+                        <h6><i class="bi bi-lightning-charge-fill text-warning me-1"></i>Precisa da sua atenção</h6>
+                        <span class="text-muted small" id="action-summary"></span>
+                    </div>
+                    <div id="action-center" class="p-2"></div>
+                </div>
+
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-xl-3">
                         <div class="stat-card clickable" onclick="showView('products')">

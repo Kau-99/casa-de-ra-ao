@@ -204,35 +204,180 @@ async function loadStats() {
 }
 
 /* ---- Dashboard ---- */
+function renderGreeting() {
+    const h = new Date().getHours();
+    const saud = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+    const email = document.getElementById('topbar-user')?.textContent ?? '';
+    const nome  = email ? email.split('@')[0].split(/[._]/)[0] : '';
+    const nomeCap = nome ? nome.charAt(0).toUpperCase() + nome.slice(1) : '';
+    setText('dash-greeting-text', `${saud}${nomeCap ? ', ' + nomeCap : ''}!`);
+    setText('dash-date', new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }));
+}
+
 async function loadDashboard() {
-    await loadStats();
-    loadSalesChart(7);
-    loadMetrics();
+    renderGreeting();
     tableLoading('dash-orders',   4, 4);
     tableLoading('dash-messages', 2, 4);
+    const ac = document.getElementById('action-center');
+    if (ac) ac.innerHTML = '<div class="text-center text-muted py-4 small"><span class="spinner-border spinner-border-sm me-2"></span>Carregando...</div>';
 
-    const [oRes, mRes] = await Promise.all([
-        api('GET', '/orders?limit=5'),
-        api('GET', '/contact?limit=5'),
+    /* Busca consolidada — uma chamada de cada recurso */
+    const [oRes, pRes, mRes] = await Promise.all([
+        api('GET', '/orders?limit=500'),
+        api('GET', '/products?limit=200'),
+        api('GET', '/contact?limit=200'),
     ]);
+    const ords  = oRes?.ok ? (oRes.data.orders ?? [])   : [];
+    const prods = pRes?.ok ? (pRes.data.items ?? [])    : [];
+    const msgs  = mRes?.ok ? (mRes.data.messages ?? []) : [];
 
+    /* Cache para o gráfico não refazer fetch */
+    finOrders = ords;
+    if (prods.length) products = prods;
+
+    renderDashStats(ords, prods, msgs);
+    renderActionCenter(ords, prods, msgs);
+    renderDashMetrics(ords);
+    renderDashRecent(ords, msgs);
+    loadSalesChart(7, ords);
+}
+
+function renderDashStats(ords, prods, msgs) {
+    setText('stat-products', prods.filter(p => p.active).length);
+    setText('stat-lowstock', prods.filter(p => p.active && p.stock <= 5).length);
+    const pendingOrders = ords.filter(o => o.status === 'pending').length;
+    setText('stat-orders', pendingOrders);
+    setBadge('badge-orders', pendingOrders);
+    const unread = msgs.filter(m => !m.replied).length;
+    setText('stat-messages', unread);
+    setBadge('badge-messages', unread);
+}
+
+/* Centro de ações — tudo que precisa de atenção, com clique direto */
+function renderActionCenter(ords, prods, msgs) {
+    const el = document.getElementById('action-center');
+    if (!el) return;
+
+    const pendentes = ords.filter(o => o.status === 'pending');
+    const pixVerify = ords.filter(o => o.payment === 'Pix' && ['pending','confirmed','preparing','ready'].includes(o.status));
+    const semEstoque = prods.filter(p => p.active && p.stock === 0);
+    const estoqueBaixo = prods.filter(p => p.active && p.stock > 0 && p.stock <= 5);
+    const naoRespondidas = msgs.filter(m => !m.replied);
+
+    const items = [];
+    if (pendentes.length) items.push({
+        bg:'#fff3e0', color:'#ff6b35', icon:'bi-bag-check-fill',
+        title:`${pendentes.length} pedido${pendentes.length>1?'s':''} aguardando confirmação`,
+        sub:'Confirme para iniciar o preparo', count:pendentes.length,
+        cbg:'#fff3e0', ccolor:'#ff6b35', action:`gotoOrders('pending')`,
+    });
+    if (pixVerify.length) items.push({
+        bg:'#e8f5ee', color:'#2d9e5f', icon:'bi-qr-code',
+        title:`${pixVerify.length} pagamento${pixVerify.length>1?'s':''} PIX para verificar`,
+        sub:'Confirme o recebimento antes de entregar', count:pixVerify.length,
+        cbg:'#e8f5ee', ccolor:'#2d9e5f', action:`gotoOrders('')`,
+    });
+    if (semEstoque.length) items.push({
+        bg:'#fce4ec', color:'#e53935', icon:'bi-x-circle-fill',
+        title:`${semEstoque.length} produto${semEstoque.length>1?'s':''} sem estoque`,
+        sub:'Reponha para voltar a vender', count:semEstoque.length,
+        cbg:'#fce4ec', ccolor:'#e53935', action:`showView('estoque')`,
+    });
+    if (estoqueBaixo.length) items.push({
+        bg:'#fef9e7', color:'#d97706', icon:'bi-exclamation-triangle-fill',
+        title:`${estoqueBaixo.length} produto${estoqueBaixo.length>1?'s':''} com estoque baixo`,
+        sub:'5 unidades ou menos restantes', count:estoqueBaixo.length,
+        cbg:'#fef9e7', ccolor:'#d97706', action:`showView('estoque')`,
+    });
+    if (naoRespondidas.length) items.push({
+        bg:'#e8f0fe', color:'#4285f4', icon:'bi-envelope-fill',
+        title:`${naoRespondidas.length} mensagem${naoRespondidas.length>1?'ns':''} não respondida${naoRespondidas.length>1?'s':''}`,
+        sub:'Clientes aguardando retorno', count:naoRespondidas.length,
+        cbg:'#e8f0fe', ccolor:'#4285f4', action:`showView('messages')`,
+    });
+
+    setText('action-summary', items.length ? `${items.length} ${items.length>1?'itens':'item'}` : '');
+
+    if (!items.length) {
+        el.innerHTML = `<div class="allclear">
+            <div class="ic"><i class="bi bi-check-circle-fill"></i></div>
+            <p class="fw-semibold mb-1 mt-2">Tudo em dia! 🎉</p>
+            <p class="text-muted small mb-0">Nenhuma pendência no momento. Bom trabalho!</p>
+        </div>`;
+        return;
+    }
+
+    el.innerHTML = items.map(it => `
+        <div class="action-item" onclick="${it.action}">
+            <div class="action-ico" style="background:${it.bg};color:${it.color}"><i class="bi ${it.icon}"></i></div>
+            <div>
+                <div class="action-title">${it.title}</div>
+                <div class="action-sub">${it.sub}</div>
+            </div>
+            <div class="action-count" style="background:${it.cbg};color:${it.ccolor}">${it.count}</div>
+        </div>`).join('');
+}
+
+/* Navega para pedidos já aplicando um filtro de status */
+function gotoOrders(status) {
+    showView('orders');
+    const sel = document.getElementById('order-filter');
+    if (sel) sel.value = status;
+    /* renderOrders roda após o fetch de loadOrders e lê o select já ajustado */
+}
+
+function renderDashMetrics(all) {
+    const now      = new Date();
+    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lstStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lstEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    const valid  = all.filter(o => o.status !== 'cancelled');
+    const curMon = valid.filter(o => new Date(o.createdAt) >= curStart);
+    const lstMon = valid.filter(o => new Date(o.createdAt) >= lstStart && new Date(o.createdAt) <= lstEnd);
+
+    const curTotal = curMon.reduce((s, o) => s + o.total, 0);
+    const lstTotal = lstMon.reduce((s, o) => s + o.total, 0);
+    const ticket   = curMon.length ? curTotal / curMon.length : 0;
+    const change   = lstTotal > 0 ? ((curTotal - lstTotal) / lstTotal) * 100 : null;
+
+    const qty = {};
+    valid.forEach(o => o.items.forEach(i => { qty[i.name] = (qty[i.name] ?? 0) + i.qty; }));
+    const [bestName, bestQty] = Object.entries(qty).sort((a, b) => Number(b[1]) - Number(a[1]))[0] ?? ['—', 0];
+
+    setText('metric-month',  fmtMoney(curTotal));
+    setText('metric-ticket', fmtMoney(ticket));
+    setText('metric-ticket-sub', `${curMon.length} pedido${curMon.length !== 1 ? 's' : ''} este mês`);
+
+    const chgEl = document.getElementById('metric-month-change');
+    if (chgEl) {
+        if (change === null) { chgEl.textContent = 'Primeiro mês de dados'; chgEl.className = 'metric-change flat'; }
+        else if (change >= 0) { chgEl.textContent = `+${change.toFixed(1)}% vs mês anterior`; chgEl.className = 'metric-change up'; }
+        else { chgEl.textContent = `${change.toFixed(1)}% vs mês anterior`; chgEl.className = 'metric-change down'; }
+    }
+
+    const nameShort = String(bestName).length > 22 ? String(bestName).substring(0, 22) + '…' : String(bestName);
+    setText('metric-bestseller',     nameShort);
+    setText('metric-bestseller-qty', bestQty ? `${bestQty} unidades vendidas` : 'Sem vendas ainda');
+}
+
+function renderDashRecent(ords, msgs) {
     const ot = document.getElementById('dash-orders');
-    if (ot && oRes?.ok) {
-        const list = oRes.data.orders ?? [];
+    if (ot) {
+        const list = ords.slice(0, 5);
         ot.innerHTML = !list.length
             ? '<tr><td colspan="4" class="text-center text-muted py-4 small">Nenhum pedido ainda.</td></tr>'
             : list.map(o => `
-                <tr style="cursor:pointer" onclick="showView('orders')">
+                <tr style="cursor:pointer" onclick="gotoOrders('')">
                     <td data-label="Pedido"><span class="font-monospace fw-semibold small">#${o._id.slice(-6).toUpperCase()}</span></td>
                     <td data-label="Total"><strong class="small">${fmtMoney(o.total)}</strong></td>
                     <td data-label="Tipo"><span class="small text-muted">${o.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'}</span></td>
                     <td data-label="Status">${statusBadge(o.status)}</td>
                 </tr>`).join('');
     }
-
     const mt = document.getElementById('dash-messages');
-    if (mt && mRes?.ok) {
-        const list = mRes.data.messages ?? [];
+    if (mt) {
+        const list = msgs.slice(0, 5);
         mt.innerHTML = !list.length
             ? '<tr><td colspan="2" class="text-center text-muted py-4 small">Nenhuma mensagem ainda.</td></tr>'
             : list.map(m => `
@@ -243,57 +388,18 @@ async function loadDashboard() {
     }
 }
 
-/* ---- Métricas do mês ---- */
-async function loadMetrics() {
-    const res = await api('GET', '/orders?limit=500');
-    if (!res?.ok) return;
-    const all = res.data.orders ?? [];
-
-    const now     = new Date();
-    const curStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lstStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lstEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-
-    const valid   = all.filter(o => o.status !== 'cancelled');
-    const curMon  = valid.filter(o => new Date(o.createdAt) >= curStart);
-    const lstMon  = valid.filter(o => new Date(o.createdAt) >= lstStart && new Date(o.createdAt) <= lstEnd);
-
-    const curTotal  = curMon.reduce((s, o) => s + o.total, 0);
-    const lstTotal  = lstMon.reduce((s, o) => s + o.total, 0);
-    const ticket    = curMon.length ? curTotal / curMon.length : 0;
-    const change    = lstTotal > 0 ? ((curTotal - lstTotal) / lstTotal) * 100 : null;
-
-    /* Produto mais vendido (por quantidade em todos os pedidos) */
-    const qty = {};
-    valid.forEach(o => o.items.forEach(i => { qty[i.name] = (qty[i.name] ?? 0) + i.qty; }));
-    const [bestName, bestQty] = Object.entries(qty).sort((a, b) => Number(b[1]) - Number(a[1]))[0] ?? ['—', 0];
-
-    setText('metric-month',  fmtMoney(curTotal));
-    setText('metric-ticket', fmtMoney(ticket));
-    setText('metric-ticket-sub', `${curMon.length} pedido${curMon.length !== 1 ? 's' : ''} este mês`);
-
-    /* Variação mês a mês */
-    const chgEl = document.getElementById('metric-month-change');
-    if (chgEl) {
-        if (change === null) { chgEl.textContent = 'Primeiro mês de dados'; chgEl.className = 'metric-change flat'; }
-        else if (change >= 0) { chgEl.textContent = `+${change.toFixed(1)}% vs mês anterior`; chgEl.className = 'metric-change up'; }
-        else { chgEl.textContent = `${change.toFixed(1)}% vs mês anterior`; chgEl.className = 'metric-change down'; }
-    }
-
-    /* Produto mais vendido */
-    const nameShort = String(bestName).length > 22 ? String(bestName).substring(0, 22) + '…' : String(bestName);
-    setText('metric-bestseller',     nameShort);
-    setText('metric-bestseller-qty', bestQty ? `${bestQty} unidades vendidas` : 'Sem vendas ainda');
-}
-
 /* ---- Sales Chart ---- */
-async function loadSalesChart(days) {
+async function loadSalesChart(days, preloaded) {
     document.getElementById('chart-7d')?.classList.toggle('active',  days === 7);
     document.getElementById('chart-30d')?.classList.toggle('active', days === 30);
 
-    const res = await api('GET', '/orders?limit=500');
-    if (!res?.ok) return;
-    const all = res.data.orders ?? [];
+    /* Reaproveita dados do dashboard quando disponíveis (evita fetch redundante) */
+    let all = preloaded;
+    if (!all) {
+        const res = await api('GET', '/orders?limit=500');
+        if (!res?.ok) return;
+        all = res.data.orders ?? [];
+    }
 
     const labels = [], data = [];
     for (let i = days - 1; i >= 0; i--) {
