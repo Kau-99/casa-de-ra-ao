@@ -624,20 +624,32 @@ function editStockInline(id, currentStock, spanEl) {
     input.className = 'stock-input form-control form-control-sm d-inline-block';
     spanEl.replaceWith(input); input.focus(); input.select();
 
+    /* Re-renderiza a tabela correta conforme a tela atual */
+    function refresh() {
+        if (currentView === 'estoque') loadEstoque();
+        else renderProducts();
+    }
+
     async function save() {
         const newStock = Math.max(0, parseInt(input.value) || 0);
         if (newStock !== currentStock) {
             const res = await api('PUT', '/products/' + id, { stock: newStock });
             if (res?.ok) {
-                const p = products.find(x => x._id === id);
-                if (p) p.stock = newStock;
+                /* Atualiza ambos os caches para refletir em Produtos e Estoque */
+                const p  = products.find(x => x._id === id);       if (p)  p.stock  = newStock;
+                const sp = stockProducts.find(x => x._id === id);  if (sp) sp.stock = newStock;
                 toast('Estoque atualizado!', 'success');
+                refresh();
+                return;
             }
         }
-        renderProducts();
+        refresh();
     }
     input.addEventListener('blur', save);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') renderProducts(); });
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  input.blur();
+        if (e.key === 'Escape') refresh();
+    });
 }
 
 /* ---- Bulk actions ---- */
